@@ -3,79 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>AI角色扮演</title>
 <style>
 :root{--bg:#f8fafc;--bg2:#fff;--sv:#1e293b;--sh:#334155;--sa:#3b82f6;--tx:#1e293b;--t2:#64748b;--st:#e2e8f0;--sm:#94a3b8;--bd:#e2e8f0;--ac:#6366f1;--dg:#ef4444;--r:12px;--rs:8px;--sb:env(safe-area-inset-bottom,0px)}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);line-height:1.6}
-.auth-pg{display:flex;align-items:center;justify-content:center;min-height:100%;min-height:100dvh;padding:20px}
-.auth-card{background:var(--bg2);border-radius:var(--r);padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.1);border:1px solid var(--bd)}
-.auth-tt{text-align:center;font-size:20px;font-weight:700;margin-bottom:4px}
-.auth-sub{text-align:center;font-size:13px;color:var(--t2);margin-bottom:24px}
-.fd{margin-bottom:14px}.fd label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
-.fd input,.fd select,.fd textarea{width:100%;padding:10px 14px;border:2px solid var(--bd);border-radius:var(--rs);font-size:16px;font-family:inherit;outline:none;background:var(--bg2);box-sizing:border-box}
-.fd input:focus,.fd select:focus,.fd textarea:focus{border-color:var(--ac)}
-.fd textarea{resize:vertical;min-height:80px}
-.fh{font-size:12px;color:var(--t2);margin-top:4px}
-.ab{width:100%;padding:12px;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;color:#fff;background:var(--ac);font-family:inherit}
-.ab:active{filter:brightness(1.1)}.ab:disabled{opacity:.5}
-.tg{text-align:center;margin-top:16px;font-size:13px;color:var(--t2)}
-.tg a{color:var(--ac);cursor:pointer;font-weight:500}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.m0{display:flex;align-items:center;justify-content:center;min-height:100%;min-height:100dvh;padding:20px}
+.card{background:var(--bg2);border-radius:var(--r);padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.1);border:1px solid var(--bd)}
+.tt1{text-align:center;font-size:20px;font-weight:700;margin-bottom:4px}
+.tt2{text-align:center;font-size:13px;color:var(--t2);margin-bottom:24px}
+.f1{margin-bottom:14px}.f1 label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.f1 input,.f1 select,.f1 textarea{width:100%;padding:10px 14px;border:2px solid var(--bd);border-radius:var(--rs);font-size:16px;font-family:inherit;outline:none;background:var(--bg2);box-sizing:border-box}
+.f1 input:focus,.f1 select:focus,.f1 textarea:focus{border-color:var(--ac)}
+.f1 textarea{resize:vertical;min-height:80px}
+.f2{font-size:12px;color:var(--t2);margin-top:4px}
+.sbtn{width:100%;padding:12px;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;color:#fff;background:var(--ac);font-family:inherit}
+.sbtn:active{filter:brightness(1.1)}.sbtn:disabled{opacity:.5}
+.sw{text-align:center;margin-top:16px;font-size:13px;color:var(--t2)}
+.sw a{color:var(--ac);cursor:pointer;font-weight:500}
 .er{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:var(--rs);padding:10px 14px;font-size:13px;margin-bottom:12px;text-align:center;word-break:break-word}
-.lob{background:none;border:1px solid var(--sm);color:var(--sm);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:var(--rs);font-family:inherit;transition:all .15s}
-.lob:hover{background:var(--dg);border-color:var(--dg);color:#fff}
+.logo{background:none;border:1px solid var(--sm);color:var(--sm);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:var(--rs);font-family:inherit;display:inline-flex;align-items:center;gap:3px}
+.logo:hover{background:var(--dg);border-color:var(--dg);color:#fff}
 .lou{font-size:11px;color:var(--sm);padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .app{display:flex;height:100%;height:100dvh;position:relative}
 .sv{width:280px;min-width:280px;background:var(--sv);color:var(--st);display:flex;flex-direction:column;z-index:100;transition:transform .25s ease}
 .svh{padding:16px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between}
-.svl{font-size:16px;font-weight:700;color:#fff;cursor:pointer}
+.svl{font-size:16px;font-weight:700;color:#fff;cursor:pointer}.svl:hover{opacity:.8}
 .svc{display:none;background:none;border:none;color:var(--sm);font-size:20px;cursor:pointer;padding:4px 8px}
-.stb{width:100%;padding:10px 12px;border:none;border-radius:var(--rs);font-size:14px;cursor:pointer;color:#fff;background:var(--ac);font-family:inherit;font-weight:500;text-align:center}
-.stb:active{filter:brightness(1.1)}
-.nr{padding:8px 10px;display:flex;flex-direction:column;gap:6px}
-.bl{overflow-y:auto;padding:4px 8px;-webkit-overflow-scrolling:touch}
-.bi{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--rs);cursor:pointer;font-size:14px}
-.bi:active{background:var(--sh)}.bi.act{background:var(--sa)}
-.bia{font-size:22px;flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:6px;background:var(--sh)}
-.bia img{width:100%;height:100%;object-fit:cover}
-.bin{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bie{opacity:0;background:none;border:none;color:var(--sm);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
-.bi:active .bie,.bi:hover .bie{opacity:1}
-.ble{text-align:center;padding:20px 12px;color:var(--sm);font-size:12px;line-height:1.8}
-.svf{padding:8px 10px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px;cursor:pointer}
-.svf:active{background:rgba(255,255,255,.05)}
-.svo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+.sideo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
 .mn{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.hb{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:6px;border-radius:8px;color:var(--tx);min-width:40px;min-height:40px;align-items:center;justify-content:center}
+.hmb{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:6px;border-radius:8px;color:var(--tx);min-width:40px;min-height:40px;align-items:center;justify-content:center}
+.hmb:active{background:var(--bd)}
 .em{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--t2);padding:20px}
 .emi{font-size:56px}.em h2{font-size:20px;color:var(--tx)}.em p{font-size:14px;max-width:300px;text-align:center}
-.cht{display:flex;flex-direction:column;height:100%}
+.ch{display:flex;flex-direction:column;height:100%}
 .chh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-bottom:3px solid var(--ac);min-height:56px}
 .chi{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
 .cha{font-size:26px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:var(--rs);flex-shrink:0;overflow:hidden}
 .cha img{width:100%;height:100%;object-fit:cover}
 .chn{font-size:15px;font-weight:600}
-.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--rs);font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;border:1px solid transparent;min-height:40px;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--rs);font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;border:1px solid transparent;transition:all .15s;white-space:nowrap;min-height:40px;min-width:40px;justify-content:center}
 .bp{background:var(--ac);color:#fff;border-color:var(--ac)}
 .bd{background:var(--dg);color:#fff;border-color:var(--dg)}
-.bg{background:transparent;color:var(--t2)}.bs{padding:6px 10px;font-size:13px;min-height:36px}
-.btn:disabled{opacity:.5}
-.msg{flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:12px}
+.bg{background:transparent;color:var(--t2);border-color:transparent}
+.bg:hover{background:var(--bg);color:var(--tx)}
+.bs{padding:6px 10px;font-size:13px;min-height:36px}.btn:disabled{opacity:.5;pointer-events:none}
+.ms{flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:12px}
 .mse{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t2);gap:6px}
+.mse h3{color:var(--tx);font-size:17px}
 .mr{display:flex;align-items:flex-start;gap:8px;max-width:85%;animation:mi .25s ease}
 @keyframes mi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .mr.u{margin-left:auto;flex-direction:row-reverse}
-.ma{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;overflow:hidden}
-.ma img{width:100%;height:100%;object-fit:cover}.ma.ua{background:var(--sv)}
+.mav{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;overflow:hidden}
+.mav img{width:100%;height:100%;object-fit:cover}.mav.ua{background:var(--sv)}
 .mb{padding:10px 14px;border-radius:var(--r);font-size:14px;line-height:1.65;word-break:break-word;white-space:pre-wrap}
 .mb.ub{background:var(--ac);color:#fff;border-bottom-right-radius:4px}
 .mb.ab{background:var(--bg2);border:1px solid var(--bd);border-bottom-left-radius:4px}
 .cia{padding:10px 14px;padding-bottom:calc(10px + var(--sb));background:var(--bg2);border-top:1px solid var(--bd);display:flex;gap:8px;align-items:flex-end}
 .cia textarea{flex:1;resize:none;border:2px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:16px;font-family:inherit;line-height:1.5;outline:none;min-height:44px;max-height:120px}
 .cia textarea:focus{border-color:var(--ac)}
-.sb{width:44px;height:44px;flex-shrink:0;font-size:20px;border-radius:var(--r);padding:0}
+.sbtn2{width:44px;height:44px;flex-shrink:0;font-size:20px;border-radius:var(--r);padding:0}
 .typ{display:flex;align-items:center;gap:8px;padding:4px 0;color:var(--t2);font-size:13px}
 .td{display:flex;gap:3px}.td span{width:7px;height:7px;border-radius:50%;background:var(--t2);animation:tp 1.4s infinite}
 .td span:nth-child(2){animation-delay:.2s}.td span:nth-child(3){animation-delay:.4s}
@@ -89,69 +76,79 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .syn{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:16px}
 .syn h3{font-size:15px;margin-bottom:4px}.syn p{font-size:12px;color:var(--t2);margin-bottom:12px}
 .imd{border:2px dashed var(--bd);border-radius:var(--r);padding:20px;text-align:center;cursor:pointer;transition:all .2s;color:var(--t2);font-size:13px;display:block}
-.imd:active,.imd:hover{border-color:var(--ac);color:var(--ac);background:var(--bg)}
+.imd:active{border-color:var(--ac);color:var(--ac);background:var(--bg)}
 .wc{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rs);padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .15s}
 .wc:hover{border-color:var(--ac)}
 .wn{font-size:14px;font-weight:600;flex:1}.wd{font-size:12px;color:var(--t2)}
 .pck{display:flex;flex-wrap:wrap;gap:8px}
-.pi{width:48px;height:48px;font-size:26px;border:2px solid var(--bd);border-radius:var(--rs);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:48px;min-height:48px}
+.pi{width:48px;height:48px;font-size:26px;border:2px solid var(--bd);border-radius:var(--rs);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pi:active{transform:scale(1.1)}.pi.sl{border-color:var(--ac);box-shadow:0 0 0 2px rgba(99,102,241,.2)}
-.ci{width:40px;height:40px;border-radius:50%;border:2px solid transparent;cursor:pointer;min-width:40px;min-height:40px}
+.ci{width:40px;height:40px;border-radius:50%;border:2px solid transparent;cursor:pointer}
 .ci:active{transform:scale(1.15)}.ci.sl{border-color:var(--ac);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
 .avup{position:relative;display:inline-block}
 .avpv{width:80px;height:80px;border-radius:var(--r);border:2px dashed var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;font-size:36px;background:var(--bg)}
-.avpv img{width:100%;height:100%;object-fit:cover}
+.avpv:hover{border-color:var(--ac)}.avpv img{width:100%;height:100%;object-fit:cover}
 .avup input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
-.avcl{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--dg);color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1}
+.avcl{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--dg);color:#fff;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.nr{padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.sb{width:100%;padding:10px 12px;border:none;border-radius:var(--rs);font-size:14px;cursor:pointer;color:#fff;background:var(--ac);font-family:inherit;font-weight:500;text-align:center}
+.sb:active{filter:brightness(1.1)}
+.bl{overflow-y:auto;padding:4px 8px;-webkit-overflow-scrolling:touch;max-height:30vh}
+.bi{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--rs);cursor:pointer;font-size:14px}
+.bi:active{background:var(--sh)}.bi.act{background:var(--sa)}
+.bia{font-size:22px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:6px;flex-shrink:0}
+.bia img{width:100%;height:100%;object-fit:cover}
+.bin{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bie{opacity:0;background:none;border:none;color:var(--sm);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
+.bi:active .bie,.bi:hover .bie{opacity:1}
+.ble{text-align:center;padding:20px 12px;color:var(--sm);font-size:12px;line-height:1.8}
+.svf{padding:8px 10px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px;cursor:pointer}
+.svf:active{background:rgba(255,255,255,.05)}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-@media(max-width:768px){.sv{position:fixed;left:0;top:0;bottom:0;width:280px;transform:translateX(-100%);box-shadow:4px 0 20px rgba(0,0,0,.3)}.sv.op{transform:translateX(0)}.svc{display:flex}.svo.sh{display:block}.hb{display:flex}.mr{max-width:90%}.chh{padding:8px 12px;min-height:52px}.msg{padding:12px}.cia{padding:8px 10px;padding-bottom:calc(8px + var(--sb))}.ed{padding:12px}.tb{font-size:12px}}
-</style>
-</head>
-<body>
+@media(max-width:768px){.sv{position:fixed;left:0;top:0;bottom:0;width:280px;transform:translateX(-100%);box-shadow:4px 0 20px rgba(0,0,0,.3)}.sv.op{transform:translateX(0)}.svc{display:flex}.sideo.sh{display:block}.hmb{display:flex}.mr{max-width:90%}.chh{padding:8px 12px;min-height:52px}.ms{padding:12px}.cia{padding:8px 10px;padding-bottom:calc(8px + var(--sb))}.ed{padding:12px}.tb{font-size:12px}}
+</style></head><body>
 <div id="root"></div>
+<!-- Step 1: Load libraries -->
 <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+
+<!-- Step 2: Application code (JSX) -->
 <script type="text/babel" data-presets="env,react">
-const SUPABASE_URL = 'https://tayaketmnrlzfrsfsqce.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRheWFrZXRtbnJsemZyc2ZzcWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODczMTMsImV4cCI6MjEwMDQ2MzMxM30.tFVRpbS4-FmJ4jaJ8AWXMVCjxBJlBZJNj0ukXraklXU';
-const AVATARS = ['🤖','🧑‍🚀','🦊','🐱','🐶','🐼','🦄','🐉','🧙‍♂️','🧛','🧝','👻','😺','🦸','👽'];
-const COLORS = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
+
+// ===== 配置 =====
+const SURL = 'https://tayaketmnrlzfrsfsqce.supabase.co';
+const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRheWFrZXRtbnJsemZyc2ZzcWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODczMTMsImV4cCI6MjEwMDQ2MzMxM30.tFVRpbS4-FmJ4jaJ8AWXMVCjxBJlBZJNj0ukXraklXU';
+const sup = window.supabase.createClient(SURL, SKEY);
 const { useState, useEffect, useRef } = React;
 
-const isMobile = () => window.innerWidth <= 768;
-const un = (dn) => dn || '用户';
-const ems = (e, f) => {
+// 常量
+const AV = ['🤖','🧑‍🚀','🦊','🐱','🐶','🐼','🦄','🐉','🧙‍♂️','🧛','🧝','👻','😺','🦸','👽'];
+const CL = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
+
+// 工具
+const isM = () => window.innerWidth <= 768;
+const UN = d => d || '用户';
+const ER = (e, f) => {
   if (!e) return f || '未知错误';
   if (typeof e === 'string' && e.length > 0 && e !== '{}') return e;
-  if (e.message && typeof e.message === 'string' && e.message.length > 1 && e.message !== '{}') return e.message.replace(/^AuthApiError:s*/, '');
-  if (e.status) return '服务器错误 (HTTP ' + e.status + ')';
-  try { const s = JSON.stringify(e); if (s && s !== '{}') return s; } catch(_) {}
+  if (e.message && typeof e.message === 'string' && e.message.length > 1 && e.message !== '{}') return e.message;
   return f || '请求失败';
 };
-const getUid = async () => {
-  const r = await supabase.auth.getUser();
-  return r.data.user ? r.data.user.id : null;
-};
-const compressImage = (file, w, h) => new Promise((rs, rj) => {
-  const r = new FileReader();
-  r.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      let iw = img.width, ih = img.height;
-      if (iw > w || ih > h) { const rt = Math.min(w/iw, h/ih); iw = Math.round(iw*rt); ih = Math.round(ih*rt); }
-      const c = document.createElement('canvas');
-      c.width = iw; c.height = ih;
-      c.getContext('2d').drawImage(img, 0, 0, iw, ih);
-      rs(c.toDataURL('image/jpeg', 0.7));
-    };
-    img.src = e.target.result;
-  };
-  r.onerror = rj;
-  r.readAsDataURL(file);
+const UID = async () => { const r = await sup.auth.getUser(); return r.data.user ? r.data.user.id : null; };
+const COMP = (file, w, h) => new Promise((rs, rj) => {
+  const rr = new FileReader();
+  rr.onload = e => { const img = new Image(); img.onload = () => {
+    let iw = img.width, ih = img.height;
+    if (iw > w || ih > h) { const rt = Math.min(w/iw, h/ih); iw = Math.round(iw*rt); ih = Math.round(ih*rt); }
+    const c = document.createElement('canvas'); c.width = iw; c.height = ih;
+    c.getContext('2d').drawImage(img, 0, 0, iw, ih); rs(c.toDataURL('image/jpeg', 0.7));
+  }; img.src = e.target.result; }; rr.onerror = rj; rr.readAsDataURL(file);
 });
 
-const sp = (bot, wv, st) => {
+// 系统提示
+const SP = (bot, wv, st) => {
   let p = '你是"' + bot.name + '"\n';
   if (bot.personality) p += '【性格】' + bot.personality + '\n';
   if (bot.backstory) p += '【背景故事】' + bot.backstory + '\n';
@@ -159,551 +156,336 @@ const sp = (bot, wv, st) => {
     p += '【世界观】时代:' + (wv.era||'未设定') + ';科技:' + (wv.technology||'未设定') + ';大事件:' + (wv.world_events||'无') + '\n';
     p += '【时代约束】不能出现不符合该时代的物品、概念或事件\n';
   }
-  const nm = un(st.display_name);
+  const nm = UN(st.display_name);
   const g = st.gender === 'male' ? '男性' : st.gender === 'female' ? '女性' : '';
   p += '【对话对象】' + (g ? '名叫' + nm + '的' + g + '用户' : '名叫' + nm + '的用户') + '\n';
-  p += '【规则】\n1.()内为动作或心理，()外为对话\n2.用第三人称，自称"' + bot.name + '"\n3.用户可用金手指改变剧情\n';
+  p += '【规则】\n1.()内为动作或心理，()外为对话\n2.用第三人称，自称“' + bot.name + '”\n3.用户可用金手指改变剧情\n';
   if (wv) p += '4.严格遵守世界观\n';
   return p;
 };
 
-const Avatar = (p) => {
-  if (p.url) return <div style={{width: p.size||32, height: p.size||32, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '50%', flexShrink: 0, background: 'var(--bg)'}}><img src={p.url} style={{width: '100%', height: '100%', objectFit: 'cover'}} alt=""/></div>;
-  return <div style={{width: p.size||32, height: p.size||32, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '50%', flexShrink: 0, background: 'var(--bg)'}}>{p.emoji || '🤖'}</div>;
-};
+// ===== 组件 =====
 
-const AvUp = (p) => {
-  const hf = async (ev) => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-    try { const b64 = await compressImage(f, 200, 200); p.onChange(b64); } catch(_) {}
-  };
+const Avatar = p => p.url ? <div style={{width:p.s||32,height:p.s||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0}}><img src={p.url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/></div> : <div style={{width:p.s||32,height:p.s||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0,background:'var(--bg)'}}>{p.e||'🤖'}</div>;
+
+const AvUp = p => {
+  const hf = async e => { const f = e.target.files[0]; if (!f) return; try { p.onChange(await COMP(f, 200, 200)); } catch(_) {} };
   const hi = p.value && p.value.indexOf('data:') === 0;
   return <div className="avup">
-    <label className="avpv">{hi ? <img src={p.value} alt=""/> : (p.currentEmoji || '📷')}</label>
+    <label className="avpv">{hi ? <img src={p.value} alt=""/> : (p.ce || '📷')}</label>
     <input type="file" accept="image/*" onChange={hf}/>
-    {hi ? <button type="button" className="avcl" onClick={(ev) => { ev.preventDefault(); p.onChange(''); }}>✕</button> : null}
+    {hi && <button type="button" className="avcl" onClick={e => { e.preventDefault(); p.onChange(''); }}>✕</button>}
   </div>;
 };
 
-const MsgB = (p) => {
+const MsgB = p => {
   const uu = p.msg.role === 'user';
   return <div className={"mr" + (uu ? " u" : "")}>
-    {uu ? <div className="ma ua">{p.ua ? <img src={p.ua} alt=""/> : '👤'}</div> : <div className="ma" style={{background: p.color + '20'}}>{p.ba && p.ba.indexOf('data:') === 0 ? <img src={p.ba} alt=""/> : p.ba}</div>}
+    {!uu ? <div className="mav" style={{background: p.color + '20'}}>{typeof p.ba === 'string' && p.ba.indexOf('data:') === 0 ? <img src={p.ba} alt=""/> : p.ba}</div> : <div className="mav ua">{p.ua ? <img src={p.ua} alt=""/> : '👤'}</div>}
     <div className={"mb " + (uu ? "ub" : "ab")} style={uu ? null : {borderLeft: '3px solid ' + p.color}}>{p.msg.content}</div>
+    {!uu && <div style={{width:32,flexShrink:0}}/>}
   </div>;
 };
 
-const Types = (p) => <div className="typ">
-  <div className="ma" style={{background: p.color + '20'}}>{p.av && p.av.indexOf('data:') === 0 ? <img src={p.av} alt=""/> : p.av}</div>
-  <div className="td"><span/><span/><span/></div>
-  <span>{p.name} 正在输入...</span>
+const Types = p => <div className="typ">
+  <div className="mav" style={{background: p.color + '20'}}>{typeof p.av === 'string' && p.av.indexOf('data:') === 0 ? <img src={p.av} alt=""/> : p.av}</div>
+  <div className="td"><span/><span/><span/></div><span>{p.name} 正在输入...</span>
 </div>;
 
-const ChatWindow = (p) => {
-  const [msgs, setMsgs] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLd] = useState(false);
-  const [err, setErr] = useState('');
-  const er = useRef(null);
-  const ir = useRef(null);
-
-  const lm = async () => {
-    try {
-      const r = await supabase.from('messages').select('*').eq('bot_id', p.bot.id).order('created_at', {ascending: true});
-      setMsgs(r.data || []);
-    } catch(_) { setMsgs([]); }
-  };
-
-  useEffect(() => { lm(); setErr(''); setInput(''); setTimeout(() => { if (ir.current) ir.current.focus(); }, 100); }, [p.bot.id]);
-  useEffect(() => { if (er.current) er.current.scrollIntoView({behavior: 'smooth'}); }, [msgs, loading]);
-
-  const send = async () => {
-    const c = input.trim();
-    if (!c || loading) return;
-    setInput(''); setLd(true); setErr('');
-    const opt = {id: 't' + Date.now(), bot_id: p.bot.id, role: 'user', content: c, created_at: new Date().toISOString()};
-    setMsgs(m => m.concat([opt]));
-    try {
-      const id = await getUid();
-      const sR = await supabase.from('user_settings').select('*').single();
-      const s = sR.data;
-      if (sR.error || !s || !s.api_key) {
-        setErr('请先设置API Key');
-        setMsgs(m => m.filter(x => x.id !== opt.id));
-        setLd(false); return;
-      }
-      const wv = p.bot.worldview_id ? (p.worldviews || []).find(w => w.id === p.bot.worldview_id) : null;
-      const sys = sp(p.bot, wv, s);
-      const insR = await supabase.from('messages').insert({user_id: id, bot_id: p.bot.id, role: 'user', content: c});
-      if (insR.error) { setErr('保存失败'); setMsgs(m => m.filter(x => x.id !== opt.id)); setLd(false); return; }
-      const hR = await supabase.from('messages').select('role,content').eq('bot_id', p.bot.id).order('created_at', {ascending: true}).limit(20);
-      const hist = (hR.data || []).map(m => ({role: m.role, content: m.content}));
-      const msgs2 = [{role: 'system', content: sys}].concat(hist);
-      const res = await fetch((s.api_base_url || 'https://api.deepseek.com') + '/v1/chat/completions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.api_key},
-        body: JSON.stringify({model: p.bot.model || 'deepseek-chat', messages: msgs2, temperature: 0.8, max_tokens: 2000})
-      });
-      if (!res.ok) { const ej = await res.json().catch(() => ({})); throw new Error(ej.error ? ej.error.message : 'HTTP ' + res.status); }
-      const d = await res.json();
-      const reply = d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content : '...';
-      await supabase.from('messages').insert({user_id: id, bot_id: p.bot.id, role: 'assistant', content: reply});
-      await supabase.from('bots').update({updated_at: new Date().toISOString()}).eq('id', p.bot.id);
-      await lm();
-      p.onUpdate();
-    } catch (e) {
-      setErr('发送失败：' + ems(e));
-      setMsgs(m => m.filter(x => x.id !== opt.id));
-    }
-    setLd(false);
-    if (ir.current) ir.current.focus();
-  };
-
-  const clr = () => {
-    if (!window.confirm('确定清空聊天记录？')) return;
-    supabase.from('messages').delete().eq('bot_id', p.bot.id).then(() => setMsgs([])).catch(e => setErr('清空失败：' + ems(e)));
-  };
-
-  return <div className="cht">
-    <div className="chh" style={{borderBottomColor: p.bot.theme_color}}>
-      <button className="hb" onClick={p.onMenuClick}>☰</button>
-      <div className="chi">
-        <div className="cha">{p.bot.avatar_url ? <img src={p.bot.avatar_url} alt=""/> : p.bot.avatar}</div>
-        <div className="chn">{p.bot.name}</div>
-      </div>
-      <button className="btn bg bs" onClick={clr}>🗑</button>
-    </div>
-    <div className="msg">
-      {msgs.length === 0 ? <div className="mse"><div style={{fontSize: 40}}>{p.bot.avatar_url ? <img src={p.bot.avatar_url} style={{width: 40, height: 40, borderRadius: 8, objectFit: 'cover'}} alt=""/> : p.bot.avatar}</div><h3>开始和{p.bot.name}聊天吧！</h3></div> : null}
-      {msgs.map(m => <MsgB key={m.id} msg={m} ba={p.bot.avatar_url || p.bot.avatar} ua={p.userProfile ? p.userProfile.avatar_url : null} color={p.bot.theme_color}/>)}
-      {loading ? <Types av={p.bot.avatar_url || p.bot.avatar} name={p.bot.name} color={p.bot.theme_color}/> : null}
-      {err ? <div className="er">{err}</div> : null}
-      <div ref={er}/>
-    </div>
-    <div className="cia">
-      <textarea ref={ir} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder={'跟' + p.bot.name + '说点什么...'} rows={1} disabled={loading} autoFocus/>
-      <button className="btn bp sb" onClick={send} disabled={!input.trim() || loading}>➤</button>
-    </div>
-  </div>;
-};
-
-const BotEd = (p) => {
-  const b = p.bot || {};
-  const [form, setForm] = useState({name: b.name || '', avatar: b.avatar || '🤖', avatar_url: b.avatar_url || '', personality: b.personality || '', backstory: b.backstory || '', theme_color: b.theme_color || '#6366f1', model: b.model || 'deepseek-chat', worldview_id: b.worldview_id || ''});
-  const [saving, setSav] = useState(false);
-  const [err, setErr] = useState('');
-  const ie = !!p.bot;
-
-  const sub = async (ev) => {
-    ev.preventDefault();
-    if (!form.name.trim()) { setErr('角色名不能为空！'); return; }
-    setSav(true); setErr('');
-    try {
-      const id = await getUid();
-      const d = {name: form.name, avatar: form.avatar, avatar_url: form.avatar_url || '', personality: form.personality, backstory: form.backstory, theme_color: form.theme_color, model: form.model, worldview_id: form.worldview_id || null};
-      if (ie) await supabase.from('bots').update(d).eq('id', b.id);
-      else { const r = await supabase.from('bots').insert(Object.assign({}, d, {user_id: id})); if (r.error) throw r.error; }
-      p.onDone();
-    } catch (e) { setErr('保存失败：' + ems(e)); setSav(false); }
-  };
-
-  const del = async () => {
-    if (!window.confirm('确定删除"' + b.name + '"？')) return;
-    try { await supabase.from('bots').delete().eq('id', b.id); p.onDone(); } catch (e) { setErr('删除失败：' + ems(e)); }
-  };
-
-  const onImg = (v) => setForm(Object.assign({}, form, {avatar_url: v, avatar: v ? form.avatar : '🤖'}));
-
-  return <div className="ed">
-    <div className="edh"><button className="btn bg" onClick={p.onCancel}>← 返回</button><h2>{ie ? '✏️ 编辑角色' : '✨ 创建角色'}</h2></div>
-    {err ? <div className="er">{err}</div> : null}
-    <form onSubmit={sub}>
-      <div className="st">基本信息</div>
-      <div className="fd"><label>角色名</label><input type="text" value={form.name} onChange={e => setForm(Object.assign({}, form, {name: e.target.value}))} placeholder="你的角色叫什么？" maxLength={30} autoFocus/></div>
-      <div className="fd"><label>AI模型</label><input type="text" value={form.model} onChange={e => setForm(Object.assign({}, form, {model: e.target.value}))} placeholder="deepseek-chat"/></div>
-      <div className="st">外貌设定</div>
-      <div className="fd"><label>头像</label>
-        <div className="pck" style={{marginBottom: 8}}>{AVATARS.map(a => <button key={a} type="button" className={"pi" + (form.avatar === a && !form.avatar_url ? " sl" : "")} onClick={() => setForm(Object.assign({}, form, {avatar: a, avatar_url: ''}))}>{a}</button>)}</div>
-        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-          <AvUp value={form.avatar_url} onChange={onImg} currentEmoji={form.avatar}/>
-          <span style={{fontSize: 12, color: 'var(--t2)'}}>上传自定义图片</span>
-        </div>
-      </div>
-      <div className="fd"><label>主题色</label>
-        <div className="pck">{COLORS.map(c => <button key={c} type="button" className={"ci" + (form.theme_color === c ? " sl" : "")} style={{background: c}} onClick={() => setForm(Object.assign({}, form, {theme_color: c}))}/>)}</div>
-      </div>
-      <div className="st">性格设定</div>
-      <div className="fd"><textarea value={form.personality} onChange={e => setForm(Object.assign({}, form, {personality: e.target.value}))} rows={3} placeholder="温柔体贴，说话轻声细语..."/><div className="fh">描述说话风格、情绪反应</div></div>
-      <div className="st">世界观</div>
-      <div className="fd"><label>选择世界观</label>
-        <select value={form.worldview_id || ''} onChange={e => setForm(Object.assign({}, form, {worldview_id: e.target.value}))}>
-          <option value="">当前时间真实世界（默认）</option>
-          {(p.worldviews || []).map(w => <option key={w.id} value={w.id}>{w.name} — {w.era || '未设定时代'}</option>)}
-        </select>
-        <div className="fh">可在左侧"创建世界观"中自定义</div>
-      </div>
-      <div className="st">背景故事</div>
-      <div className="fd"><textarea value={form.backstory} onChange={e => setForm(Object.assign({}, form, {backstory: e.target.value}))} rows={3} placeholder="描述角色的身份、经历..."/><div className="fh">角色的个人经历和故事线</div></div>
-      <div style={{display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap'}}>
-        <button type="submit" className="btn bp" disabled={saving}>{saving ? '保存中...' : (ie ? '💾 保存' : '✨ 创建')}</button>
-        {ie ? <button type="button" className="btn bd" onClick={del}>🗑 删除</button> : null}
-        <button type="button" className="btn bg" onClick={p.onCancel}>取消</button>
-      </div>
-    </form>
-  </div>;
-};
-
-const WvEd = (p) => {
-  const w = p.wv || {};
-  const [form, setForm] = useState({name: w.name || '', era: w.era || '', technology: w.technology || '', world_events: w.world_events || ''});
-  const [saving, setSav] = useState(false);
-  const [err, setErr] = useState('');
-  const ie = !!p.wv;
-
-  const sub = async (ev) => {
-    ev.preventDefault();
-    if (!form.name.trim()) { setErr('世界观名称不能为空！'); return; }
-    setSav(true); setErr('');
-    try {
-      const id = await getUid();
-      if (ie) await supabase.from('worldviews').update(form).eq('id', w.id);
-      else { const r = await supabase.from('worldviews').insert(Object.assign({}, form, {user_id: id})); if (r.error) throw r.error; }
-      p.onDone();
-    } catch (e) { setErr('保存失败：' + ems(e)); setSav(false); }
-  };
-
-  const del = async () => {
-    if (!window.confirm('确定删除世界观"' + w.name + '"？')) return;
-    try { await supabase.from('worldviews').delete().eq('id', w.id); p.onDone(); } catch (e) { setErr('删除失败：' + ems(e)); }
-  };
-
-  return <div className="ed">
-    <div className="edh"><button className="btn bg" onClick={p.onCancel}>← 返回</button><h2>{ie ? '✏️ 编辑世界观' : '🌍 创建世界观'}</h2></div>
-    {err ? <div className="er">{err}</div> : null}
-    <form onSubmit={sub}>
-      <div className="fd"><label>世界观名称</label><input type="text" value={form.name} onChange={e => setForm(Object.assign({}, form, {name: e.target.value}))} placeholder="唐朝盛世、赛博朋克2077" maxLength={30} autoFocus/></div>
-      <div className="fd"><label>时代背景</label><input type="text" value={form.era} onChange={e => setForm(Object.assign({}, form, {era: e.target.value}))} placeholder="公元618-907年"/></div>
-      <div className="fd"><label>科技水平</label><input type="text" value={form.technology} onChange={e => setForm(Object.assign({}, form, {technology: e.target.value}))} placeholder="冷兵器时代"/></div>
-      <div className="fd"><label>世界大事件</label><textarea value={form.world_events} onChange={e => setForm(Object.assign({}, form, {world_events: e.target.value}))} rows={4} placeholder="安史之乱即将爆发..."/><div className="fh">描述重要事件</div></div>
-      <div style={{display: 'flex', gap: 8, marginTop: 20}}>
-        <button type="submit" className="btn bp" disabled={saving}>{saving ? '保存中...' : (ie ? '💾 保存' : '🌍 创建')}</button>
-        {ie ? <button type="button" className="btn bd" onClick={del}>🗑 删除</button> : null}
-        <button type="button" className="btn bg" onClick={p.onCancel}>取消</button>
-      </div>
-    </form>
-  </div>;
-};
-
-const WvList = (p) => <div className="ed">
-  <div className="edh"><button className="btn bg" onClick={p.onBack}>← 返回</button><h2>📚 世界观列表</h2></div>
-  {p.worldviews.length === 0 ? <div style={{textAlign: 'center', color: 'var(--t2)', padding: 40}}><p>还没有创建世界观</p><p style={{fontSize: 13, marginTop: 4}}>点击左侧"创建世界观"</p></div> : null}
-  {p.worldviews.map(w => <div key={w.id} className="wc" onClick={() => p.onEdit(w)}>
-    <div style={{flex: 1}}>
-      <div className="wn">{w.name}</div>
-      <div className="wd">{(w.era || '未设定') + ' · ' + (w.technology || '未设定')}</div>
-    </div>
-    <span style={{color: 'var(--t2)', fontSize: 12}}>编辑 ›</span>
-  </div>)}
-</div>;
-
-const Settings = (p) => {
-  const [tab, setTab] = useState(p.initialTab || 'api');
-  const [s, setS] = useState({api_key: '', api_base_url: 'https://api.deepseek.com', default_model: 'deepseek-chat'});
-  const [pr, setPr] = useState({display_name: '', avatar_url: '', gender: ''});
-  const [msg, setMsg] = useState('');
-  const [ld, setLd] = useState(true);
-  const [em, setEm] = useState('');
-  const [im, setIm] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const id = await getUid();
-        if (!id) { setLd(false); return; }
-        const r = await supabase.from('user_settings').select('*').eq('user_id', id).maybeSingle();
-        if (!r.error && r.data) {
-          setS(r.data);
-          setPr({display_name: r.data.display_name || '', avatar_url: r.data.avatar_url || '', gender: r.data.gender || ''});
-        }
-      } catch (e) { console.error(e); }
-      finally { setLd(false); }
-    })();
-  }, []);
-
-  const savApi = async () => {
-    setMsg('');
-    try {
-      const id = await getUid();
-      if (!id) { setMsg('❌ 未登录'); return; }
-      const r = await supabase.from('user_settings').upsert(Object.assign({}, s, {user_id: id}));
-      setMsg(r.error ? '❌ 失败' : '✅ 已保存');
-      setTimeout(() => setMsg(''), 2500);
-    } catch (e) { setMsg('❌ ' + ems(e)); }
-  };
-
-  const savPr = async () => {
-    setMsg('');
-    try {
-      const id = await getUid();
-      if (!id) { setMsg('❌ 未登录'); return; }
-      const r = await supabase.from('user_settings').upsert({user_id: id, display_name: pr.display_name || '', avatar_url: pr.avatar_url || '', gender: pr.gender || ''});
-      setMsg(r.error ? '❌ 失败' : '✅ 已保存');
-      p.onRefresh();
-      setTimeout(() => setMsg(''), 2500);
-    } catch (e) { setMsg('❌ ' + ems(e)); }
-  };
-
-  const handleExport = async () => {
-    try {
-      const bR = await supabase.from('bots').select('*');
-      const mR = await supabase.from('messages').select('*');
-      const bl = new Blob([JSON.stringify({bots: bR.data, msgs: mR.data, settings: s}, null, 2)], {type: 'application/json'});
-      const url = URL.createObjectURL(bl);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'backup-' + new Date().toISOString().slice(0, 10) + '.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      setEm('✅ 导出成功');
-    } catch (e) { setEm('❌ ' + ems(e)); }
-  };
-
-  const handleFileImport = (ev) => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = async (ee) => {
-      try {
-        const d = JSON.parse(ee.target.result);
-        if (!d.bots) { setIm('❌ 无效文件'); return; }
-        const id = await getUid();
-        for (let i = 0; i < d.bots.length; i++) {
-          await supabase.from('bots').insert(Object.assign({}, d.bots[i], {user_id: id}));
-        }
-        setIm('✅ 导入成功！');
-        p.onRefresh();
-      } catch (e) { setIm('❌ ' + ems(e)); }
-    };
-    r.readAsText(f);
-  };
-
-  if (ld) return <div className="ed"><p style={{color: 'var(--t2)', textAlign: 'center', padding: 20}}>加载中...</p></div>;
-
-  return <div className="ed">
-    <div className="edh"><button className="btn bg" onClick={p.onBack}>← 返回</button><h2>⚙️ 设置</h2></div>
-    <div className="tabs">
-      <button className={"tb" + (tab === 'api' ? " act" : "")} onClick={() => setTab('api')}>🔑 API</button>
-      <button className={"tb" + (tab === 'account' ? " act" : "")} onClick={() => setTab('account')}>👤 账号</button>
-      <button className={"tb" + (tab === 'sync' ? " act" : "")} onClick={() => setTab('sync')}>🔄 数据</button>
-    </div>
-    {msg ? <div className="er" style={{background: msg.indexOf('✅') === 0 ? '#f0fdf4' : '#fef2f2', color: msg.indexOf('✅') === 0 ? '#16a34a' : '#dc2626'}}>{msg}</div> : null}
-    {tab === 'api' ? <div>
-      <div className="fd"><label>API Key</label><input type="password" value={s.api_key || ''} onChange={e => setS(Object.assign({}, s, {api_key: e.target.value}))} placeholder="输入 DeepSeek API Key..."/><div className="fh">获取：<a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 控制台</a></div></div>
-      <div className="fd"><label>API Base URL</label><input type="text" value={s.api_base_url || ''} onChange={e => setS(Object.assign({}, s, {api_base_url: e.target.value}))} placeholder="https://api.deepseek.com"/></div>
-      <div className="fd"><label>默认模型</label><input type="text" value={s.default_model || ''} onChange={e => setS(Object.assign({}, s, {default_model: e.target.value}))} placeholder="deepseek-chat"/></div>
-      <button className="btn bp" style={{marginTop: 16}} onClick={savApi}>💾 保存</button>
-    </div> : tab === 'account' ? <div>
-      <div className="fd"><label>用户名称</label><input type="text" value={pr.display_name} onChange={e => setPr(Object.assign({}, pr, {display_name: e.target.value}))} placeholder="角色会这样称呼你" maxLength={20}/><div className="fh">对话时的称呼</div></div>
-      <div className="fd"><label>头像</label><AvUp value={pr.avatar_url} onChange={v => setPr(Object.assign({}, pr, {avatar_url: v}))} currentEmoji="👤"/></div>
-      <div className="fd"><label>性别</label>
-        <select value={pr.gender} onChange={e => setPr(Object.assign({}, pr, {gender: e.target.value}))}>
-          <option value="">不设置</option>
-          <option value="male">男</option>
-          <option value="female">女</option>
-          <option value="other">其他</option>
-        </select>
-      </div>
-      <button className="btn bp" style={{marginTop: 16}} onClick={savPr}>💾 保存</button>
-    </div> : <div>
-      <div className="syn"><h3>📤 导出备份</h3><p>下载所有角色和消息</p><button className="btn bp" onClick={handleExport}>📥 下载备份</button>{em ? <div className="er" style={{background: em.indexOf('✅') === 0 ? '#f0fdf4' : '#fef2f2', color: em.indexOf('✅') === 0 ? '#16a34a' : '#dc2626', marginTop: 8, marginBottom: 0}}>{em}</div> : null}</div>
-      <div className="syn"><h3>📥 导入恢复</h3><label className="imd"><input type="file" accept=".json" onChange={handleFileImport} style={{display: 'none'}}/>📁 选择备份文件</label>{im ? <div className="er" style={{background: im.indexOf('✅') === 0 ? '#f0fdf4' : '#fef2f2', color: im.indexOf('✅') === 0 ? '#16a34a' : '#dc2626', marginTop: 8, marginBottom: 0}}>{im}</div> : null}</div>
-    </div>}
-  </div>;
-};
-
+// ===== 登录/注册 =====
 const AuthPage = () => {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  const [loading, setLd] = useState(false);
-  const [err, setErr] = useState('');
-
-  const sub = async (ev) => {
-    ev.preventDefault();
+  const [mode,setMode]=useState('login'),[email,setEmail]=useState(''),[pw,setPw]=useState(''),[ld,setLd]=useState(false),[err,setErr]=useState('');
+  const sub = async e => { e.preventDefault();
     if (!email.trim() || !pw) { setErr('请填写邮箱和密码'); return; }
     setLd(true); setErr('');
     try {
       const fn = mode === 'login' ? 'signInWithPassword' : 'signUp';
-      const args = mode === 'login' ? {email: email, password: pw} : {email: email, password: pw, options: {emailRedirectTo: window.location.origin}};
-      const r = await supabase.auth[fn](args);
-      if (r.error) { setErr(ems(r.error, (mode === 'login' ? '登录' : '注册') + '失败')); setLd(false); return; }
-      if (mode === 'register') {
-        if (r.data && r.data.session) setErr('✅ 注册成功！自动登录中...');
-        else { setErr('✅ 注册成功！请登录'); setMode('login'); }
-        setPw('');
-      }
+      const args = mode === 'login' ? {email,pw} : {email,pw,options:{emailRedirectTo:window.location.origin}};
+      const r = await sup.auth[fn](args);
+      if (r.error) { setErr(ER(r.error, mode === 'login' ? '登录失败' : '注册失败')); setLd(false); return; }
+      if (mode === 'register') { setErr(r.data?.session ? '✅ 注册成功！' : '✅ 成功！请登录'); if (!r.data?.session) setMode('login'); setPw(''); }
       setLd(false);
-    } catch (e) { setErr(ems(e)); setLd(false); }
+    } catch (e) { setErr(ER(e)); setLd(false); }
+  };
+  return <div className="m0"><div className="card">
+    <div className="tt1">AI角色扮演</div><div className="tt2">创造属于你的故事</div>
+    {err && <div className="er">{err}</div>}
+    <form onSubmit={sub}><div className="f1"><label>邮箱</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" autoFocus/></div>
+      <div className="f1"><label>密码</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder={mode==='login'?'输入密码':'设置密码(至少6位)'}/></div>
+      <button type="submit" className="sbtn" disabled={ld}>{ld?'处理中...':mode==='login'?'登录':'注册'}</button>
+    </form>
+    <div className="sw">{mode==='login'?'没有账号？':'已有账号？'}<a onClick={()=>{setMode(mode==='login'?'register':'login');setErr('')}}>{mode==='login'?'注册':'登录'}</a></div>
+  </div></div>;
+};
+
+// ===== 首页 =====
+const Empty = p => <div className="em">
+  {isM() && <button className="hmb" style={{display:'flex',marginBottom:12}} onClick={p.mc}>☰</button>}
+  <div className="emi">👋</div><h2>欢迎回来！</h2><p>创造属于你的故事。</p>
+</div>;
+
+// ===== 聊天 =====
+const ChatWin = p => {
+  const [ms,setMs]=useState([]),[inp,setInp]=useState(''),[ld,setLd]=useState(false),[er,setEr]=useState('');
+  const erR=useRef(null),ir=useRef(null);
+  const lm=async()=>{try{const r=await sup.from('messages').select('*').eq('bot_id',p.bot.id).order('created_at',{ascending:true});setMs(r.data||[]);}catch(_){setMs([]);}};
+  useEffect(()=>{lm();setEr('');setInp('');setTimeout(()=>ir.current?.focus(),100);},[p.bot.id]);
+  useEffect(()=>{erR.current?.scrollIntoView({behavior:'smooth'});},[ms,ld]);
+
+  const snd = async () => {
+    const c = inp.trim(); if (!c || ld) return;
+    setInp(''); setLd(true); setEr('');
+    const opt = {id:'t'+Date.now(),bot_id:p.bot.id,role:'user',content:c,created_at:new Date().toISOString()};
+    setMs(m=>[...m,opt]);
+    try {
+      const id = await UID();
+      const _s = await sup.from('user_settings').select('*').single();
+      const s = _s.data; if (_s.error || !s?.api_key) { setEr('请先设置 API Key'); setMs(m=>m.filter(x=>x.id!==opt.id)); setLd(false); return; }
+      const wv = p.bot.worldview_id ? (p.wvs||[]).find(w=>w.id===p.bot.worldview_id) : null;
+      const sys = SP(p.bot, wv, s);
+      await sup.from('messages').insert({user_id:id,bot_id:p.bot.id,role:'user',content:c});
+      const _h = await sup.from('messages').select('role,content').eq('bot_id',p.bot.id).order('created_at',{ascending:true}).limit(20);
+      const hist = (_h.data||[]).map(m=>({role:m.role,content:m.content}));
+      const res = await fetch((s.api_base_url||'https://api.deepseek.com')+'/v1/chat/completions',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.api_key},
+        body:JSON.stringify({model:p.bot.model||'deepseek-chat',messages:[{role:'system',content:sys},...hist],temperature:.8,max_tokens:2000})
+      });
+      if (!res.ok) { const ej = await res.json().catch(()=>({})); throw new Error(ej.error?.message || 'HTTP '+res.status); }
+      const d = await res.json(), reply = d.choices?.[0]?.message?.content || '...';
+      await sup.from('messages').insert({user_id:id,bot_id:p.bot.id,role:'assistant',content:reply});
+      await sup.from('bots').update({updated_at:new Date().toISOString()}).eq('id',p.bot.id);
+      await lm(); p.onUpd();
+    } catch(e) { setEr('发送失败：'+ER(e)); setMs(m=>m.filter(x=>x.id!==opt.id)); }
+    setLd(false); ir.current?.focus();
   };
 
-  return <div className="auth-pg">
-    <div className="auth-card">
-      <div className="auth-tt">AI角色扮演</div>
-      <div className="auth-sub">创造属于你的故事</div>
-      {err ? <div className="er">{err}</div> : null}
-      <form onSubmit={sub}>
-        <div className="fd"><label>邮箱</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" autoFocus/></div>
-        <div className="fd"><label>密码</label><input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder={mode === 'login' ? '输入密码' : '设置密码(至少6位)'}/></div>
-        <button type="submit" className="ab" disabled={loading}>{loading ? '处理中...' : (mode === 'login' ? '登录' : '注册')}</button>
-      </form>
-      <div className="tg">{mode === 'login' ? '没有账号？' : '已有账号？'}<a onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setErr(''); }}>{mode === 'login' ? '注册' : '登录'}</a></div>
+  return <div className="ch">
+    <div className="chh" style={{borderBottomColor:p.bot.theme_color}}>
+      <button className="hmb" onClick={p.mc}>☰</button>
+      <div className="chi">
+        <div className="cha">{p.bot.avatar_url ? <img src={p.bot.avatar_url} alt=""/> : p.bot.avatar}</div>
+        <div className="chn">{p.bot.name}</div>
+      </div>
+      <button className="btn bg bs" onClick={()=>{if(confirm('清空记录？')){sup.from('messages').delete().eq('bot_id',p.bot.id).then(()=>setMs([])).catch(e=>setEr(ER(e)));}}}>🗑</button>
+    </div>
+    <div className="ms">
+      {ms.length===0 && <div className="mse"><div style={{fontSize:40}}>{p.bot.avatar_url?<img src={p.bot.avatar_url} style={{width:40,height:40,borderRadius:8,objectFit:'cover'}} alt=""/>:p.bot.avatar}</div><h3>开始和{p.bot.name}聊天吧！</h3></div>}
+      {ms.map(m=><MsgB key={m.id} msg={m} ba={p.bot.avatar_url||p.bot.avatar} ua={p.up?.avatar_url} color={p.bot.theme_color}/>)}
+      {ld && <Types av={p.bot.avatar_url||p.bot.avatar} name={p.bot.name} color={p.bot.theme_color}/>}
+      {er && <div className="er">{er}</div>}<div ref={erR}/>
+    </div>
+    <div className="cia">
+      <textarea ref={ir} value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();snd();}}} placeholder={'跟'+p.bot.name+'说点什么...'} rows={1} disabled={ld} autoFocus/>
+      <button className="btn bp sbtn2" onClick={snd} disabled={!inp.trim()||ld}>➤</button>
     </div>
   </div>;
 };
 
-const EmptyState = (p) => <div className="em">
-  {isMobile() ? <button className="hb" style={{display: 'flex', marginBottom: 12}} onClick={p.onMenuClick}>☰</button> : null}
-  <div className="emi">👋</div>
-  <h2>欢迎回来！</h2>
-  <p>创造属于你的故事。</p>
-</div>;
+// ===== 角色编辑 =====
+const BotEd = p => {
+  const b = p.bot || {};
+  const [f,setF]=useState({name:b.name||'',avatar:b.avatar||'🤖',avurl:b.avatar_url||'',pity:b.personality||'',back:b.backstory||'',tc:b.theme_color||'#6366f1',md:b.model||'deepseek-chat',wid:b.worldview_id||''});
+  const [sv,setSv]=useState(false),[er,setEr]=useState('');
+  const ie = !!p.bot;
+  const sub = async e => { e.preventDefault();
+    if (!f.name.trim()) { setEr('角色名不能为空！'); return; }
+    setSv(true); setEr('');
+    try {
+      const id = await UID();
+      const d = {name:f.name,avatar:f.avatar,avatar_url:f.avurl||'',personality:f.pity,backstory:f.back,theme_color:f.tc,model:f.md,worldview_id:f.wid||null};
+      if (ie) await sup.from('bots').update(d).eq('id',b.id);
+      else { const r = await sup.from('bots').insert({...d,user_id:id}); if (r.error) throw r.error; }
+      p.onDone();
+    } catch(e) { setEr('保存失败：'+ER(e)); setSv(false); }
+  };
+  const del = async () => { if (!confirm('删除"'+b.name+'"？')) return; try { await sup.from('bots').delete().eq('id',b.id); p.onDone(); } catch(e) { setEr(ER(e)); } };
 
-const Sidebar = (p) => {
-  const [lo, setLo] = useState(false);
-  const sl = (id) => { p.onSelect(id); if (isMobile()) p.onClose(); };
-  return <React.Fragment>
-    <aside className={"sv" + (p.open ? " op" : "")}>
-      <div className="svh">
-        <div className="svl" onClick={() => { p.onHome(); if (isMobile()) p.onClose(); }} title="回首页">AI角色扮演</div>
-        {p.open ? <button className="svc" onClick={p.onClose}>✕</button> : null}
+  return <div className="ed">
+    <div className="edh"><button className="btn bg" onClick={p.onCancel}>← 返回</button><h2>{ie?'✏️ 编辑角色':'✨ 创建角色'}</h2></div>
+    {er && <div className="er">{er}</div>}
+    <form onSubmit={sub}>
+      <div className="st">基本信息</div>
+      <div className="f1"><label>角色名</label><input type="text" value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="你的角色叫什么？" maxLength={30} autoFocus/></div>
+      <div className="f1"><label>AI模型</label><input type="text" value={f.md} onChange={e=>setF({...f,md:e.target.value})} placeholder="deepseek-chat"/></div>
+      <div className="st">外貌设定</div>
+      <div className="f1"><label>头像</label>
+        <div className="pck" style={{marginBottom:8}}>{AV.map(a=><button key={a} type="button" className={"pi"+(f.avatar===a&&!f.avurl?" sl":"")} onClick={()=>setF({...f,avatar:a,avurl:''})}>{a}</button>)}</div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}><AvUp value={f.avurl} onChange={v=>setF({...f,avurl:v,avatar:v?f.avatar:'🤖'})} ce={f.avatar}/><span style={{fontSize:12,color:'var(--t2)'}}>上传自定义图片</span></div>
       </div>
-      <div className="nr" style={{paddingBottom: 3}}>
-        <button className="stb" onClick={() => { p.onCreate(); if (isMobile()) p.onClose(); }}>✨ 创建角色</button>
-        <button className="stb" onClick={() => setLo(!lo)}>📋 角色列表 {lo ? '▾' : '▸'}</button>
+      <div className="f1"><label>主题色</label><div className="pck">{CL.map(c=><button key={c} type="button" className={"ci"+(f.tc===c?" sl":"")} style={{background:c}} onClick={()=>setF({...f,tc:c})}/>)}</div></div>
+      <div className="st">性格设定</div>
+      <div className="f1"><textarea value={f.pity} onChange={e=>setF({...f,pity:e.target.value})} rows={3} placeholder="温柔体贴，说话轻声细语..."/><div className="f2">描述说话风格、情绪反应</div></div>
+      <div className="st">世界观</div>
+      <div className="f1"><label>选择世界观</label><select value={f.wid||''} onChange={e=>setF({...f,wid:e.target.value})}>
+        <option value="">当前时间真实世界（默认）</option>
+        {(p.wvs||[]).map(w=><option key={w.id} value={w.id}>{w.name} — {w.era||'未设定'}</option>)}
+      </select><div className="f2">可在左侧"创建世界观"中自定义</div></div>
+      <div className="st">背景故事</div>
+      <div className="f1"><textarea value={f.back} onChange={e=>setF({...f,back:e.target.value})} rows={3} placeholder="描述角色的身份、经历..."/><div className="f2">角色的个人经历和故事线</div></div>
+      <div style={{display:'flex',gap:8,marginTop:20,flexWrap:'wrap'}}>
+        <button type="submit" className="btn bp" disabled={sv}>{sv?'保存中...':ie?'💾 保存':'✨ 创建'}</button>
+        {ie && <button type="button" className="btn bd" onClick={del}>🗑 删除</button>}
+        <button type="button" className="btn bg" onClick={p.onCancel}>取消</button>
       </div>
-      {lo ? <nav className="bl" style={{flex: 'none', maxHeight: '30vh', margin: '0 10px', marginBottom: 6}}>
-        {p.bots.map(b => <div key={b.id} className={"bi" + (b.id === p.activeId ? " act" : "")} onClick={() => sl(b.id)}>
-          <div className="bia">{b.avatar_url ? <img src={b.avatar_url} alt=""/> : b.avatar}</div>
-          <div className="bin">{b.name}</div>
-          <button className="bie" onClick={ev => { ev.stopPropagation(); p.onEdit(b); if (isMobile()) p.onClose(); }}>⚙</button>
-        </div>)}
-        {p.bots.length === 0 ? <div className="ble">还没有角色</div> : null}
-      </nav> : null}
-      <div className="nr" style={{paddingTop: 3}}>
-        <button className="stb" style={{opacity: 0.85}} onClick={() => { p.onCreateWorldview(); if (isMobile()) p.onClose(); }}>🌍 创建世界观</button>
-        <button className="stb" style={{opacity: 0.85}} onClick={() => { p.onListWorldviews(); if (isMobile()) p.onClose(); }}>📚 世界观列表</button>
-        <button className="stb" style={{background: 'var(--sh)'}} onClick={() => { p.onSettings(); if (isMobile()) p.onClose(); }}>⚙️ 设置</button>
-      </div>
-      <div style={{flex: 1}}/>
-      <div className="svf" onClick={() => { p.onProfileClick(); if (isMobile()) p.onClose(); }}>
-        <Avatar url={p.userProfile ? p.userProfile.avatar_url : null} emoji="👤" size={32}/>
-        <div style={{flex: 1, minWidth: 0, overflow: 'hidden'}}>
-          <div style={{fontSize: 13, color: 'var(--st)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{un(p.userProfile ? p.userProfile.display_name : null)}</div>
-          {p.email ? <div className="lou">{p.email}</div> : null}
-        </div>
-        <button className="lob" onClick={ev => { ev.stopPropagation(); p.onLogout(); }} title="退出登录">⇱</button>
-      </div>
-    </aside>
-    <div className={"svo" + (p.open ? " sh" : "")} onClick={p.onClose}/>
-  </React.Fragment>;
+    </form>
+  </div>;
 };
 
+// ===== 世界观编辑 =====
+const WvEd = p => {
+  const w = p.wv || {};
+  const [f,setF]=useState({name:w.name||'',era:w.era||'',tech:w.technology||'',ev:w.world_events||''});
+  const [sv,setSv]=useState(false),[er,setEr]=useState('');
+  const ie = !!p.wv;
+  const sub = async e => { e.preventDefault();
+    if (!f.name.trim()) { setEr('世界观名称不能为空！'); return; }
+    setSv(true); setEr('');
+    try {
+      const id = await UID();
+      if (ie) await sup.from('worldviews').update(f).eq('id',w.id);
+      else { const r = await sup.from('worldviews').insert({...f,user_id:id}); if (r.error) throw r.error; }
+      p.onDone();
+    } catch(e) { setEr('保存失败：'+ER(e)); setSv(false); }
+  };
+  const del = async () => { if (!confirm('删除世界观"'+w.name+'"？')) return; try { await sup.from('worldviews').delete().eq('id',w.id); p.onDone(); } catch(e) { setEr(ER(e)); } };
+  return <div className="ed">
+    <div className="edh"><button className="btn bg" onClick={p.onCancel}>← 返回</button><h2>{ie?'✏️ 编辑世界观':'🌍 创建世界观'}</h2></div>
+    {er && <div className="er">{er}</div>}
+    <form onSubmit={sub}>
+      <div className="f1"><label>世界观名称</label><input type="text" value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="唐朝盛世、赛博朋克2077" maxLength={30} autoFocus/></div>
+      <div className="f1"><label>时代背景</label><input type="text" value={f.era} onChange={e=>setF({...f,era:e.target.value})} placeholder="公元618-907年"/></div>
+      <div className="f1"><label>科技水平</label><input type="text" value={f.tech} onChange={e=>setF({...f,tech:e.target.value})} placeholder="冷兵器时代"/></div>
+      <div className="f1"><label>世界大事件</label><textarea value={f.ev} onChange={e=>setF({...f,ev:e.target.value})} rows={4} placeholder="安史之乱即将爆发..."/><div className="f2">描述重要事件</div></div>
+      <div style={{display:'flex',gap:8,marginTop:20}}>
+        <button type="submit" className="btn bp" disabled={sv}>{sv?'保存中...':ie?'💾 保存':'🌍 创建'}</button>
+        {ie && <button type="button" className="btn bd" onClick={del}>🗑 删除</button>}
+        <button type="button" className="btn bg" onClick={p.onCancel}>取消</button>
+      </div>
+    </form>
+  </div>;
+};
+
+// ===== 世界观列表 =====
+const WvList = p => <div className="ed">
+  <div className="edh"><button className="btn bg" onClick={p.onBack}>← 返回</button><h2>📚 世界观列表</h2></div>
+  {p.wvs.length===0?<div style={{textAlign:'center',color:'var(--t2)',padding:40}}><p>还没有创建世界观</p></div>:null}
+  {p.wvs.map(w=><div key={w.id} className="wc" onClick={()=>p.onEdit(w)}><div style={{flex:1}}><div className="wn">{w.name}</div><div className="wd">{(w.era||'未设定')+' · '+(w.tech||'未设定')}</div></div><span style={{color:'var(--t2)',fontSize:12}}>编辑 ›</span></div>)}
+</div>;
+
+// ===== 设置 =====
+const Settings = p => {
+  const [tab,setTab]=useState(p.it||'api');
+  const [s,setS]=useState({api_key:'',api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'});
+  const [pr,setPr]=useState({display_name:'',avatar_url:'',gender:''});
+  const [mg,setMg]=useState(''),[ld,setLd]=useState(true),[em,setEm]=useState(''),[im,setIm]=useState('');
+  useEffect(()=>{(async()=>{try{const id=await UID();if(!id){setLd(false);return;}const r=await sup.from('user_settings').select('*').eq('user_id',id).maybeSingle();if(!r.error&&r.data){setS(r.data);setPr({display_name:r.data.display_name||'',avatar_url:r.data.avatar_url||'',gender:r.data.gender||''});}}catch(_){}finally{setLd(false);}})();},[]);
+  const savApi=async()=>{setMg('');try{const id=await UID();if(!id){setMg('❌ 未登录');return;}const r=await sup.from('user_settings').upsert({...s,user_id:id});setMg(r.error?'❌ 失败':'✅ 已保存');setTimeout(()=>setMg(''),2500);}catch(e){setMg('❌ '+ER(e));}};
+  const savPr=async()=>{setMg('');try{const id=await UID();if(!id){setMg('❌ 未登录');return;}const r=await sup.from('user_settings').upsert({user_id:id,display_name:pr.display_name||'',avatar_url:pr.avatar_url||'',gender:pr.gender||''});setMg(r.error?'❌ 失败':'✅ 已保存');p.onUpd();setTimeout(()=>setMg(''),2500);}catch(e){setMg('❌ '+ER(e));}};
+  const expt=async()=>{try{const _b=await sup.from('bots').select('*');const _m=await sup.from('messages').select('*');const bl=new Blob([JSON.stringify({bots:_b.data,msgs:_m.data,settings:s},null,2)],{type:'application/json'});const url=URL.createObjectURL(bl);const a=document.createElement('a');a.href=url;a.download='backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);setEm('✅ 导出成功');}catch(e){setEm('❌ '+ER(e));}};
+  const impt=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ee=>{try{const d=JSON.parse(ee.target.result);if(!d.bots){setIm('❌ 无效文件');return;}const id=await UID();for(let i=0;i<d.bots.length;i++){await sup.from('bots').insert({...d.bots[i],user_id:id});}setIm('✅ 导入成功！');p.onUpd();}catch(e){setIm('❌ '+ER(e));}};r.readAsText(f);};
+  if (ld) return <div className="ed"><p style={{color:'var(--t2)',textAlign:'center',padding:20}}>加载中...</p></div>;
+  return <div className="ed">
+    <div className="edh"><button className="btn bg" onClick={p.onBack}>← 返回</button><h2>⚙️ 设置</h2></div>
+    <div className="tabs"><button className={"tb"+(tab==='api'?" act":"")} onClick={()=>setTab('api')}>🔑 API</button><button className={"tb"+(tab==='account'?" act":"")} onClick={()=>setTab('account')}>👤 账号</button><button className={"tb"+(tab==='sync'?" act":"")} onClick={()=>setTab('sync')}>🔄 数据</button></div>
+    {mg && <div className="er" style={{background:mg.indexOf('✅')===0?'#f0fdf4':'#fef2f2',color:mg.indexOf('✅')===0?'#16a34a':'#dc2626'}}>{mg}</div>}
+    {tab==='api'?<div>
+      <div className="f1"><label>API Key</label><input type="password" value={s.api_key||''} onChange={e=>setS({...s,api_key:e.target.value})} placeholder="输入 DeepSeek API Key..."/><div className="f2">获取：<a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 控制台</a></div></div>
+      <div className="f1"><label>API Base URL</label><input type="text" value={s.api_base_url||''} onChange={e=>setS({...s,api_base_url:e.target.value})} placeholder="https://api.deepseek.com"/></div>
+      <div className="f1"><label>默认模型</label><input type="text" value={s.default_model||''} onChange={e=>setS({...s,default_model:e.target.value})} placeholder="deepseek-chat"/></div>
+      <button className="btn bp" style={{marginTop:16}} onClick={savApi}>💾 保存</button>
+    </div>:tab==='account'?<div>
+      <div className="f1"><label>用户名称</label><input type="text" value={pr.display_name} onChange={e=>setPr({...pr,display_name:e.target.value})} placeholder="角色会这样称呼你" maxLength={20}/><div className="f2">对话时的称呼</div></div>
+      <div className="f1"><label>头像</label><AvUp value={pr.avatar_url} onChange={v=>setPr({...pr,avatar_url:v})} ce="👤"/></div>
+      <div className="f1"><label>性别</label><select value={pr.gender} onChange={e=>setPr({...pr,gender:e.target.value})}><option value="">不设置</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></div>
+      <button className="btn bp" style={{marginTop:16}} onClick={savPr}>💾 保存</button>
+    </div>:<div>
+      <div className="syn"><h3>📤 导出备份</h3><p>下载所有角色和消息</p><button className="btn bp" onClick={expt}>📥 下载备份</button>{em && <div className="er" style={{background:em.indexOf('✅')===0?'#f0fdf4':'#fef2f2',color:em.indexOf('✅')===0?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{em}</div>}</div>
+      <div className="syn"><h3>📥 导入恢复</h3><label className="imd"><input type="file" accept=".json" onChange={impt} style={{display:'none'}}/>📁 选择备份文件</label>{im && <div className="er" style={{background:im.indexOf('✅')===0?'#f0fdf4':'#fef2f2',color:im.indexOf('✅')===0?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{im}</div>}</div>
+    </div>}
+  </div>;
+};
+
+// ===== 侧边栏 =====
+const Sidebar = p => {
+  const [lo,setLo]=useState(false);
+  const sl=id=>{p.onSel(id);if(isM())p.onClose();};
+  return <>
+    <aside className={"sv"+(p.open?" op":"")}>
+      <div className="svh"><div className="svl" onClick={()=>{p.onHome();if(isM())p.onClose();}} title="回首页">AI角色扮演</div>{p.open && <button className="svc" onClick={p.onClose}>✕</button>}</div>
+      <div className="nr" style={{paddingBottom:3}}>
+        <button className="sb" onClick={()=>{p.onCreate();if(isM())p.onClose();}}>✨ 创建角色</button>
+        <button className="sb" onClick={()=>setLo(!lo)}>📋 角色列表 {lo?'▾':'▸'}</button>
+      </div>
+      {lo && <nav className="bl" style={{margin:'0 10px 6px',flex:'none'}}>
+        {p.bots.map(b=><div key={b.id} className={"bi"+(b.id===p.aid?" act":"")} onClick={()=>sl(b.id)}>
+          <div className="bia">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</div>
+          <div className="bin">{b.name}</div>
+          <button className="bie" onClick={e=>{e.stopPropagation();p.onEdit(b);if(isM())p.onClose();}}>⚙</button>
+        </div>)}
+        {p.bots.length===0 && <div className="ble">还没有角色</div>}
+      </nav>}
+      <div className="nr" style={{paddingTop:3}}>
+        <button className="sb" style={{opacity:.85}} onClick={()=>{p.onCW();if(isM())p.onClose();}}>🌍 创建世界观</button>
+        <button className="sb" style={{opacity:.85}} onClick={()=>{p.onLW();if(isM())p.onClose();}}>📚 世界观列表</button>
+        <button className="sb" style={{background:'var(--sh)'}} onClick={()=>{p.onSett();if(isM())p.onClose();}}>⚙️ 设置</button>
+      </div>
+      <div style={{flex:1}}/>
+      <div className="svf" onClick={()=>{p.onProf();if(isM())p.onClose();}}>
+        <Avatar url={p.up?.avatar_url} e="👤" s={32}/>
+        <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
+          <div style={{fontSize:13,color:'var(--st)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{UN(p.up?.display_name)}</div>
+          {p.email && <div className="lou">{p.email}</div>}
+        </div>
+        <button className="logo" onClick={e=>{e.stopPropagation();p.onLou();}} title="退出登录">⇱</button>
+      </div>
+    </aside>
+    <div className={"sideo"+(p.open?" sh":"")} onClick={p.onClose}/>
+  </>;
+};
+
+// ===== 主应用 =====
 const MainApp = () => {
-  const [bots, setBots] = useState([]);
-  const [wvs, setWvs] = useState([]);
-  const [aid, setAid] = useState(null);
-  const [view, setView] = useState('chat');
-  const [eB, setEB] = useState(null);
-  const [eW, setEW] = useState(null);
-  const [so, setSo] = useState(!isMobile());
-  const [email, setEmail] = useState('');
-  const [up, setUp] = useState(null);
+  const [bots,setB]=useState([]),[wvs,setW]=useState([]),[aid,setA]=useState(null);
+  const [view,setV]=useState('chat'),[eB,setEB]=useState(null),[eW,setEW]=useState(null);
+  const [so,setSo]=useState(!isM()),[em,setEm]=useState(''),[up,setUp]=useState(null);
 
-  const es = async () => {
-    try {
-      const id = await getUid();
-      if (!id) return;
-      const r = await supabase.from('user_settings').select('user_id').eq('user_id', id).maybeSingle();
-      if (r.error && r.error.code === 'PGRST116') {
-        await supabase.from('user_settings').insert({user_id: id, api_base_url: 'https://api.deepseek.com', default_model: 'deepseek-chat'});
-      }
-    } catch (e) { console.error(e); }
-  };
-  const lup = async () => {
-    try {
-      const id = await getUid();
-      if (!id) return;
-      const r = await supabase.from('user_settings').select('display_name,avatar_url,gender').eq('user_id', id).maybeSingle();
-      if (r.data) setUp(r.data);
-    } catch (e) { console.error(e); }
-  };
-  const la = async () => {
-    try {
-      const bR = await supabase.from('bots').select('*').order('updated_at', {ascending: false});
-      const wR = await supabase.from('worldviews').select('*').order('updated_at', {ascending: false});
-      setBots(bR.data || []);
-      setWvs(wR.data || []);
-    } catch (e) { console.error(e); }
-  };
+  const es = async () => { try { const id = await UID(); if (!id) return; const r = await sup.from('user_settings').select('user_id').eq('user_id',id).maybeSingle(); if (r.error && r.error.code === 'PGRST116') await sup.from('user_settings').insert({user_id:id,api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'}); } catch (_) {} };
+  const lu = async () => { try { const id = await UID(); if (!id) return; const r = await sup.from('user_settings').select('display_name,avatar_url,gender').eq('user_id',id).maybeSingle(); if (r.data) setUp(r.data); } catch (_) {} };
+  const la = async () => { try { const _b = await sup.from('bots').select('*').order('updated_at',{ascending:false}); const _w = await sup.from('worldviews').select('*').order('updated_at',{ascending:false}); setB(_b.data||[]); setW(_w.data||[]); } catch (_) {} };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const uR = await supabase.auth.getUser();
-        setEmail(uR.data.user ? (uR.data.user.email || '') : '');
-        await es();
-        await lup();
-        await la();
-      } catch (e) { console.error(e); }
-      const hh = () => setSo(!isMobile());
-      window.addEventListener('resize', hh);
-      return () => window.removeEventListener('resize', hh);
-    })();
-  }, []);
+  useEffect(() => { (async () => { try { const r = await sup.auth.getUser(); setEm(r.data.user?.email||''); await es(); await lu(); await la(); } catch (_) {} const h = () => setSo(!isM()); window.addEventListener('resize',h); return () => window.removeEventListener('resize',h); })(); }, []);
 
-  const goHome = () => { setAid(null); setView('chat'); };
-  const logout = async () => { try { await supabase.auth.signOut(); } catch (e) { console.error(e); } };
-  const goProfile = () => setView('sa');
-  const refresh = async () => { await la(); await lup(); };
+  const gh = () => { setA(null); setV('chat'); };
+  const lo = async () => { try { await sup.auth.signOut(); } catch (_) {} };
+  const gp = () => setV('sa');
+  const rf = async () => { await la(); await lu(); };
   const ab = bots.find(b => b.id === aid) || null;
 
   return <div className="app">
-    <Sidebar bots={bots} activeId={aid} onSelect={id => { setAid(id); setView('chat'); }} onHome={goHome}
-      onCreate={() => { setEB(null); setView('cb'); }} onEdit={b => { setEB(b); setView('eb'); }}
-      onSettings={() => setView('st')} onProfileClick={goProfile} open={so} onClose={() => setSo(false)}
-      onLogout={logout} email={email} userProfile={up}
-      onCreateWorldview={() => { setEW(null); setView('cw'); }}
-      onListWorldviews={() => setView('lw')}
-    />
+    <Sidebar bots={bots} aid={aid} onSel={id=>{setA(id);setV('chat');}} onHome={gh} onCreate={()=>{setEB(null);setV('cb');}} onEdit={b=>{setEB(b);setV('eb');}} onSett={()=>setV('st')} onProf={gp} open={so} onClose={()=>setSo(false)} onLou={lo} email={em} up={up} onCW={()=>{setEW(null);setV('cw');}} onLW={()=>setV('lw')}/>
     <main className="mn">
-      {view === 'cb' ? <BotEd onDone={() => { la(); setView('chat'); }} onCancel={() => setView('chat')} worldviews={wvs}/> : null}
-      {view === 'eb' && eB ? <BotEd bot={eB} onDone={() => { la(); setView('chat'); setEB(null); }} onCancel={() => setView('chat')} worldviews={wvs}/> : null}
-      {view === 'cw' ? <WvEd onDone={() => { la(); setView('chat'); setEW(null); }} onCancel={() => setView('chat')}/> : null}
-      {view === 'ew' && eW ? <WvEd wv={eW} onDone={() => { la(); setView('lw'); setEW(null); }} onCancel={() => setView('lw')}/> : null}
-      {view === 'lw' ? <WvList onBack={() => setView('chat')} worldviews={wvs} onEdit={w => { setEW(w); setView('ew'); }} onRefresh={la}/> : null}
-      {view === 'st' ? <Settings onBack={() => setView('chat')} onRefresh={refresh} userProfile={up}/> : null}
-      {view === 'sa' ? <Settings onBack={() => setView('chat')} onRefresh={refresh} userProfile={up} initialTab="account"/> : null}
-      {view === 'chat' && ab ? <ChatWindow bot={ab} onUpdate={la} onMenuClick={() => setSo(v => !v)} userProfile={up} worldviews={wvs}/> : null}
-      {view === 'chat' && !ab ? <EmptyState onMenuClick={() => setSo(v => !v)}/> : null}
+      {view==='cb' && <BotEd onDone={()=>{la();setV('chat');}} onCancel={()=>setV('chat')} wvs={wvs}/>}
+      {view==='eb' && eB && <BotEd bot={eB} onDone={()=>{la();setV('chat');setEB(null);}} onCancel={()=>setV('chat')} wvs={wvs}/>}
+      {view==='cw' && <WvEd onDone={()=>{la();setV('chat');setEW(null);}} onCancel={()=>setV('chat')}/>}
+      {view==='ew' && eW && <WvEd wv={eW} onDone={()=>{la();setV('lw');setEW(null);}} onCancel={()=>setV('lw')}/>}
+      {view==='lw' && <WvList onBack={()=>setV('chat')} wvs={wvs} onEdit={w=>{setEW(w);setV('ew');}} onUpd={la}/>}
+      {view==='st' && <Settings onBack={()=>setV('chat')} onUpd={rf} up={up}/>}
+      {view==='sa' && <Settings onBack={()=>setV('chat')} onUpd={rf} up={up} it="account"/>}
+      {view==='chat' && ab && <ChatWin bot={ab} onUpd={la} mc={()=>setSo(v=>!v)} up={up} wvs={wvs}/>}
+      {view==='chat' && !ab && <Empty mc={()=>setSo(v=>!v)}/>}
     </main>
   </div>;
 };
 
+// ===== 根组件 =====
 const App = () => {
-  const [session, setSession] = useState(null);
-  const [loading, setLd] = useState(true);
-  useEffect(() => {
-    supabase.auth.getSession().then(r => { setSession(r.data.session); setLd(false); });
-    const sub = supabase.auth.onAuthStateChange((_e, ss) => setSession(ss));
-    return () => { if (sub && sub.data && sub.data.subscription) sub.data.subscription.unsubscribe(); };
-  }, []);
-  if (loading) return <div className="auth-pg"><div style={{color: 'var(--t2)'}}>加载中...</div></div>;
-  if (!session) return <AuthPage/>;
+  const [ss,setSS]=useState(null),[ld,setLd]=useState(true);
+  useEffect(()=>{sup.auth.getSession().then(r=>{setSS(r.data.session);setLd(false);});const sub=sup.auth.onAuthStateChange((_,s)=>setSS(s));return()=>sub.data.subscription.unsubscribe();},[]);
+  if (ld) return <div className="m0"><div style={{color:'var(--t2)'}}>加载中...</div></div>;
+  if (!ss) return <AuthPage/>;
   return <MainApp/>;
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
-</body>
-</html>
+</body></html>
