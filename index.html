@@ -134,48 +134,81 @@ const COLORS=['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c5
 function isMobile(){return window.innerWidth<=768}
 function errMsg(e,f){if(!e)return f||'未知错误';if(typeof e==='string'&&e.length>0&&e!=='{}')return e;if(e.message&&typeof e.message==='string'&&e.message.length>1&&e.message!=='{}')return e.message.replace(/^AuthApiError:\s*/,'');if(e.status)return'服务器错误 (HTTP '+e.status+')';if(e.code)return'错误码: '+e.code;try{const s=JSON.stringify(e);if(s&&s!=='{}')return s}catch(_){}return f||'请求失败'}
 async function getUserId(){const{data:{user}}=await supabase.auth.getUser();return user?.id}
+
+// Util: resize & compress image to base64
 function compressImage(file,maxW,maxH){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;if(w>maxW||h>maxH){const r=Math.min(maxW/w,maxH/h);w=Math.round(w*r);h=Math.round(h*r)}const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',0.7))};img.src=e.target.result};reader.onerror=reject;reader.readAsDataURL(file)})}
+
+// Util: render avatar (emoji or image)
 function Avatar({url,emoji,size,style}){const s={width:size||32,height:size||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0,...style};if(url)return<div style={s}><img src={url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/></div>;return<div style={{...s,background:'var(--bg)'}}>{emoji||'🤖'}</div>}
+
+// Util: user name display
 function userName(dn){return dn||'用户'}
 
+// ===== Auth =====
 function AuthPage(){
   const[mode,setMode]=useState('login');const[email,setEmail]=useState('');const[password,setPassword]=useState('');const[loading,setLoading]=useState(false);const[err,setErr]=useState('');
   const handleSubmit=async e=>{e.preventDefault();if(!email.trim()||!password){setErr('请填写邮箱和密码');return;}setLoading(true);setErr('');try{if(mode==='login'){const{error}=await supabase.auth.signInWithPassword({email,password});if(error){setErr(errMsg(error,'登录失败'));setLoading(false);return}}else{if(password.length<6){setErr('密码至少6位');setLoading(false);return}const{data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});if(error){setErr(errMsg(error,'注册失败'));setLoading(false);return}setErr(data?.session?'✅ 注册成功！自动登录中...':'✅ 注册成功！请切换到登录页登录');if(!data?.session)setMode('login');setPassword('')}}catch(e){setErr(errMsg(e,'网络错误'))}setLoading(false)};
-  return(<div className="auth-page"><div className="auth-card"><div className="auth-logo">🤖</div><div className="auth-title">AI角色扮演</div><div className="auth-sub">登录后数据自动云端同步</div>{err&&<div className="auth-error">{err}</div>}<form onSubmit={handleSubmit}><div className="auth-field"><label>邮箱</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" autoFocus/></div><div className="auth-field"><label>密码</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='login'?'输入密码':'设置密码（至少6位）'}/></div><button className="auth-btn" type="submit" disabled={loading}>{loading?'处理中...':mode==='login'?'登录':'注册'}</button></form><div className="auth-toggle">{mode==='login'?<>没有账号？<a onClick={()=>{setMode('register');setErr('')}}>注册</a></>:<>已有账号？<a onClick={()=>{setMode('login');setErr('')}}>登录</a></>}</div></div></div>)
+  return(<div className="auth-page"><div className="auth-card"><div className="auth-title">AI角色扮演</div><div className="auth-sub">创造属于你的故事</div>{err&&<div className="auth-error">{err}</div>}<form onSubmit={handleSubmit}><div className="auth-field"><label>邮箱</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" autoFocus/></div><div className="auth-field"><label>密码</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='login'?'输入密码':'设置密码（至少6位）'}/></div><button className="auth-btn" type="submit" disabled={loading}>{loading?'处理中...':mode==='login'?'登录':'注册'}</button></form><div className="auth-toggle">{mode==='login'?<>没有账号？<a onClick={()=>{setMode('register');setErr('')}}>注册</a></>:<>已有账号？<a onClick={()=>{setMode('login');setErr('')}}>登录</a></>}</div></div></div>)
 }
 
+// ===== App =====
 function App(){const[session,setSession]=useState(null);const[loading,setLoading]=useState(true);useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,session)=>setSession(session));return()=>subscription.unsubscribe()},[]);if(loading)return<div className="auth-page"><div style={{color:'var(--txt2)'}}>加载中...</div></div>;if(!session)return<AuthPage/>;return<MainApp/>}
 
+// ===== AvatarUpload =====
 function AvatarUpload({value,onChange,currentEmoji}){
   const handleFile=async e=>{const f=e.target.files?.[0];if(!f)return;try{const b64=await compressImage(f,200,200);onChange(b64)}catch(err){}};
   const handleClear=()=>{onChange('')};
   const hasImg=value&&value.startsWith('data:');
-  return(<div className="avatar-upload"><label className="avatar-preview">{hasImg?<img src={value} alt=""/>:currentEmoji||'📷'}</label><input type="file" accept="image/*" onChange={handleFile}/>{hasImg&&<button className="avatar-clear" onClick={e=>{e.preventDefault();handleClear()}}>✕</button>}</div>)
+  return(<div className="avatar-upload">
+    <label className="avatar-preview">{hasImg?<img src={value} alt=""/>:currentEmoji||'📷'}</label>
+    <input type="file" accept="image/*" onChange={handleFile}/>
+    {hasImg&&<button className="avatar-clear" onClick={e=>{e.preventDefault();handleClear()}}>✕</button>}
+  </div>)
 }
 
+// ===== Sidebar =====
 function Sidebar({bots,activeId,onSelect,onCreate,onEdit,onSettings,onHome,open,onClose,onLogout,email,userProfile,onProfileClick}){
   const[listOpen,setListOpen]=useState(true);
   const h=id=>{onSelect(id);if(isMobile())onClose()};
   return(<><aside className={`sidebar${open?' open':''}`}>
-    <div className="sidebar-header"><div className="sidebar-logo" onClick={()=>{onHome();if(isMobile())onClose()}} title="回首页">AI角色扮演</div><button className="sidebar-close" onClick={onClose}>✕</button></div>
-    <div style={{padding:'8px 10px'}}><button className="sidebar-btn" style={{width:'100%'}} onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button></div>
-    <div style={{padding:'0 10px 4px',display:'flex',alignItems:'center',cursor:'pointer'}} onClick={()=>setListOpen(!listOpen)}><span style={{fontSize:12,color:'var(--side-muted)',flex:1}}>角色列表 {listOpen?'▾':'▸'}</span></div>
+    {/* Header */}
+    <div className="sidebar-header">
+      <div className="sidebar-logo" onClick={()=>{onHome();if(isMobile())onClose()}} title="回首页">AI角色扮演</div>
+      <button className="sidebar-close" onClick={onClose}>✕</button>
+    </div>
+    {/* Create btn */}
+    <div style={{padding:'8px 10px'}}>
+      <button className="sidebar-btn" style={{width:'100%'}} onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button>
+    </div>
+    {/* Role list - collapsible */}
+    <div style={{padding:'0 10px 4px',display:'flex',alignItems:'center',cursor:'pointer'}} onClick={()=>setListOpen(!listOpen)}>
+      <span style={{fontSize:12,color:'var(--side-muted)',flex:1}}>角色列表 {listOpen?'▾':'▸'}</span>
+    </div>
     {listOpen&&<nav className="bot-list">{bots.map(b=>(<div key={b.id} className={`bot-item${b.id===activeId?' active':''}`} onClick={()=>h(b.id)}><span className="bot-item-avatar">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</span><span className="bot-item-name">{b.name}</span><button className="bot-item-edit" onClick={e=>{e.stopPropagation();onEdit(b);if(isMobile())onClose()}}>⚙</button></div>))}{bots.length===0&&<div className="bot-list-empty"><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></div>}</nav>}
     <div style={{flex:1}}/>
-    <div style={{padding:'0 10px 8px'}}><button className="sidebar-btn" style={{width:'100%',background:'transparent',color:'var(--side-muted)'}} onClick={()=>{onSettings();if(isMobile())onClose()}}>⚙️ 设置</button></div>
+    {/* Settings */}
+    <div style={{padding:'0 10px 8px'}}>
+      <button className="sidebar-btn" style={{width:'100%',background:'transparent',color:'var(--side-muted)'}} onClick={()=>{onSettings();if(isMobile())onClose()}}>⚙️ 设置</button>
+    </div>
+    {/* Footer: user info */}
     <div className="sidebar-footer" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>{onProfileClick();if(isMobile())onClose()}}>
       <Avatar url={userProfile?.avatar_url} emoji="👤" size={32}/>
-      <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,color:'var(--side-txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{userName(userProfile?.display_name)}</div>{email&&<div className="logout-user" style={{padding:0}}>{email}</div>}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13,color:'var(--side-txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{userName(userProfile?.display_name)}</div>
+        {email&&<div className="logout-user" style={{padding:0}}>{email}</div>}
+      </div>
       <button className="logout-btn" style={{width:'auto'}} onClick={e=>{e.stopPropagation();onLogout()}}>🚪</button>
     </div>
   </aside><div className={`sidebar-overlay${open?' show':''}`} onClick={onClose}/></>)
 }
 
+// ===== Chat =====
 function ChatWindow({bot,onUpdate,onMenuClick,userProfile}){
   const[msgs,setMsgs]=useState([]);const[input,setInput]=useState('');const[loading,setLoading]=useState(false);const[err,setErr]=useState('');const endRef=useRef(null);const inputRef=useRef(null);
   const loadMessages=async()=>{try{const{data}=await supabase.from('messages').select('*').eq('bot_id',bot.id).order('created_at',{ascending:true});setMsgs(data||[])}catch(e){console.error('loadMessages:',e);setMsgs([])}};
   useEffect(()=>{loadMessages();setErr('');setInput('');setTimeout(()=>inputRef.current?.focus(),100)},[bot.id]);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[msgs,loading]);
+
   const handleSend=async()=>{
     const content=input.trim();if(!content||loading)return;
     setInput('');setLoading(true);setErr('');
@@ -185,12 +218,16 @@ function ChatWindow({bot,onUpdate,onMenuClick,userProfile}){
       const uid=await getUserId();
       const{data:s,error:sErr}=await supabase.from('user_settings').select('*').single();
       if(sErr||!s?.api_key){setErr('请先在设置（⚙️）中配置 API Key');setMsgs(p=>p.filter(m=>m.id!==optimistic.id));setLoading(false);return}
+
+      // Build system prompt with user info
       const uname=userName(s.display_name);
       const genderHint=s.gender==='male'?'男性':s.gender==='female'?'女性':'';
       let sysPrompt=`你是"${bot.name}"。\n【性格】${bot.personality||'友好自然'}\n【背景】${bot.backstory||''}\n【对话对象】你正在和一位${genderHint?'名叫'+uname+'的'+genderHint+'用户':'名叫'+uname+'的用户'}对话。`;
       if(!s.personality&&!s.backstory)sysPrompt+=`\n【对话规则】用"${uname}"称呼对方，保持角色一致性。`;
+
       const{error:insErr}=await supabase.from('messages').insert({user_id:uid,bot_id:bot.id,role:'user',content});
       if(insErr){setErr('保存消息失败: '+errMsg(insErr));setMsgs(p=>p.filter(m=>m.id!==optimistic.id));setLoading(false);return}
+
       const history=(await supabase.from('messages').select('role,content').eq('bot_id',bot.id).order('created_at',{ascending:true}).limit(20)).data||[];
       const messages=[{role:'system',content:sysPrompt},...history.map(m=>({role:m.role,content:m.content}))];
       const res=await fetch(`${s.api_base_url||'https://api.deepseek.com'}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${s.api_key}`},body:JSON.stringify({model:bot.model||'deepseek-chat',messages,temperature:.8,max_tokens:2000})});
@@ -205,17 +242,24 @@ function ChatWindow({bot,onUpdate,onMenuClick,userProfile}){
   const handleClear=async()=>{if(!window.confirm('确定清空聊天记录？'))return;try{await supabase.from('messages').delete().eq('bot_id',bot.id);setMsgs([])}catch(e){setErr('清空失败：'+errMsg(e))}};
   return(<div className="chat"><div className="chat-header" style={{borderBottomColor:bot.theme_color}}><button className="hamburger" onClick={onMenuClick}>☰</button><div className="chat-header-info"><div className="chat-header-avatar">{bot.avatar_url?<img src={bot.avatar_url} alt=""/>:bot.avatar}</div><div className="chat-header-text"><div className="chat-header-name">{bot.name}</div>{bot.personality&&<div className="chat-header-desc">{bot.personality.slice(0,50)}</div>}</div></div><button className="btn btn-ghost btn-sm" onClick={handleClear}>🗑</button></div><div className="msgs">{msgs.length===0&&<div className="msgs-empty"><div style={{fontSize:40}}>{bot.avatar_url?<img src={bot.avatar_url} style={{width:40,height:40,borderRadius:8,objectFit:'cover'}} alt=""/>:bot.avatar}</div><h3>开始和{bot.name}聊天吧！</h3></div>}{msgs.map(m=><MessageBubble key={m.id} msg={m} botAvatar={bot.avatar_url||bot.avatar} userAvatar={userProfile?.avatar_url} color={bot.theme_color}/>)}{loading&&<Typing avatar={bot.avatar_url||bot.avatar} name={bot.name} color={bot.theme_color}/>}{err&&<div className="error">{err}</div>}<div ref={endRef}/></div><div className="chat-input-area"><textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}}} placeholder={`跟${bot.name}说点什么...`} rows={1} disabled={loading} autoFocus/><button className="btn btn-primary send-btn" onClick={handleSend} disabled={!input.trim()||loading}>➤</button></div></div>)
 }
-
 function MessageBubble({msg,botAvatar,userAvatar,color}){const u=msg.role==='user';return(<div className={`msg-row${u?' user':''}`}>{!u?<div className="msg-avatar" style={{background:color+'20'}}>{typeof botAvatar==='string'&&botAvatar.startsWith('data:')?<img src={botAvatar} alt=""/>:botAvatar}</div>:<div className="msg-avatar user-avatar">{userAvatar?<img src={userAvatar} alt=""/>:'👤'}</div>}<div className={`msg-bubble${u?' user-bubble':' assistant-bubble'}`} style={!u?{borderLeft:'3px solid '+color}:{}}>{msg.content}</div>{!u&&<div style={{width:32,flexShrink:0}}/>}</div>)}
 function Typing({avatar,name,color}){return<div className="typing"><div className="msg-avatar" style={{background:color+'20'}}>{typeof avatar==='string'&&avatar.startsWith('data:')?<img src={avatar} alt=""/>:avatar}</div><div className="typing-dots"><span/><span/><span/></div><span>{name} 正在输入...</span></div>}
 
+// ===== BotEditor =====
 function BotEditor({bot,onDone,onCancel}){
   const[form,setForm]=useState({name:bot?.name||'',avatar:bot?.avatar||'🤖',avatar_url:bot?.avatar_url||'',personality:bot?.personality||'',backstory:bot?.backstory||'',theme_color:bot?.theme_color||'#6366f1',model:bot?.model||'deepseek-chat'});
   const[saving,setSaving]=useState(false);const[err,setErr]=useState('');const isEdit=!!bot;
   const handleSubmit=async e=>{e.preventDefault();if(!form.name.trim()){setErr('名字不能为空！');return}setSaving(true);setErr('');try{const uid=await getUserId();const data={...form};if(!data.avatar_url)data.avatar_url='';if(isEdit){await supabase.from('bots').update(data).eq('id',bot.id)}else{const{error:e2}=await supabase.from('bots').insert({...data,user_id:uid});if(e2)throw e2}onDone()}catch(e){setErr('保存失败：'+errMsg(e));setSaving(false)}};
   const handleDelete=async()=>{if(!window.confirm(`确定删除「${bot.name}」？聊天记录也会删！`))return;try{await supabase.from('bots').delete().eq('id',bot.id);onDone()}catch(e){setErr('删除失败：'+errMsg(e))}};
   return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onCancel}>← 返回</button><h2>{isEdit?'✏️ 编辑':'✨ 创建'}机器人</h2></div>{err&&<div className="error">{err}</div>}<form onSubmit={handleSubmit}><div className="form-group"><label>名字</label><input type="text" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="起个名字..." maxLength={30} autoFocus/></div>
-    <div className="form-group"><label>头像（选Emoji或上传图片）</label><div className="picker" style={{marginBottom:8}}>{AVATARS.map(a=><button key={a} type="button" className={`picker-item${form.avatar===a&&!form.avatar_url?' sel':''}`} onClick={()=>setForm({...form,avatar:a,avatar_url:''})}>{a}</button>)}</div><div style={{display:'flex',alignItems:'center',gap:12}}><AvatarUpload value={form.avatar_url} onChange={v=>setForm({...form,avatar_url:v,avatar:v?'🤖':form.avatar})} currentEmoji={form.avatar}/><span style={{fontSize:12,color:'var(--txt2)'}}>自定义图片（自动压缩）</span></div></div>
+    <div className="form-group">
+      <label>头像（选Emoji或上传图片）</label>
+      <div className="picker" style={{marginBottom:8}}>{AVATARS.map(a=><button key={a} type="button" className={`picker-item${form.avatar===a&&!form.avatar_url?' sel':''}`} onClick={()=>setForm({...form,avatar:a,avatar_url:''})}>{a}</button>)}</div>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <AvatarUpload value={form.avatar_url} onChange={v=>setForm({...form,avatar_url:v,avatar:v?'🤖':form.avatar})} currentEmoji={form.avatar}/>
+        <span style={{fontSize:12,color:'var(--txt2)'}}>自定义图片（自动压缩）</span>
+      </div>
+    </div>
     <div className="form-group"><label>主题色</label><div className="picker">{COLORS.map(c=><button key={c} type="button" className={`color-item${form.theme_color===c?' sel':''}`} style={{background:c}} onClick={()=>setForm({...form,theme_color:c})}/>)}</div></div>
     <div className="form-group"><label>性格设定</label><textarea value={form.personality} onChange={e=>setForm({...form,personality:e.target.value})} rows={3} placeholder="温柔体贴的邻家姐姐，说话轻声细语..."/><div className="form-hint">描述说话风格、情绪反应</div></div>
     <div className="form-group"><label>背景故事 / 世界观</label><textarea value={form.backstory} onChange={e=>setForm({...form,backstory:e.target.value})} rows={3} placeholder="你是22世纪的AI助手..."/><div className="form-hint">身份、背景、世界观</div></div>
@@ -223,6 +267,7 @@ function BotEditor({bot,onDone,onCancel}){
     <div style={{display:'flex',gap:'8px',marginTop:'20px',flexWrap:'wrap'}}><button type="submit" className="btn btn-primary" disabled={saving}>{saving?'保存中...':isEdit?'💾 保存':'✨ 创建'}</button>{isEdit&&<button type="button" className="btn btn-danger" onClick={handleDelete}>🗑 删除</button>}<button type="button" className="btn btn-ghost" onClick={onCancel}>取消</button></div></form></div>)
 }
 
+// ===== Settings =====
 function SettingsView({onBack,onRefresh,userProfile,initialTab}){
   const[tab,setTab]=useState(initialTab||'api');const[s,setS]=useState({api_key:'',api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'});const[profile,setProfile]=useState({display_name:'',avatar_url:'',gender:''});const[msg,setMsg]=useState('');const[loading,setLoading]=useState(true);const[exportMsg,setExportMsg]=useState('');const[importMsg,setImportMsg]=useState('');
   useEffect(()=>{loadSettings();loadProfile()},[]);
@@ -235,22 +280,34 @@ function SettingsView({onBack,onRefresh,userProfile,initialTab}){
   if(loading)return<div className="editor"><p style={{color:'var(--txt2)',textAlign:'center',padding:20}}>加载中...</p></div>;
   return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onBack}>← 返回</button><h2>⚙️ 设置</h2></div><div className="tabs"><button className={`tab-btn${tab==='api'?' active':''}`} onClick={()=>setTab('api')}>🔑 API</button><button className={`tab-btn${tab==='account'?' active':''}`} onClick={()=>setTab('account')}>👤 账号</button><button className={`tab-btn${tab==='sync'?' active':''}`} onClick={()=>setTab('sync')}>🔄 数据</button></div>{msg&&<div className="error" style={{background:msg.includes('✅')?'#f0fdf4':'#fef2f2',color:msg.includes('✅')?'#16a34a':'#dc2626'}}>{msg}</div>}
     {tab==='api'&&(<form onSubmit={saveApi}><div className="form-group"><label>API Key</label><input type="password" value={s.api_key||''} onChange={e=>setS({...s,api_key:e.target.value})} placeholder="输入 DeepSeek API Key..."/><div className="form-hint">获取: <a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com/api_keys</a></div></div><div className="form-group"><label>API Base URL</label><input type="text" value={s.api_base_url||''} onChange={e=>setS({...s,api_base_url:e.target.value})} placeholder="https://api.deepseek.com"/></div><div className="form-group"><label>默认模型</label><input type="text" value={s.default_model||''} onChange={e=>setS({...s,default_model:e.target.value})} placeholder="deepseek-chat"/></div><button type="submit" className="btn btn-primary" style={{marginTop:'16px'}}>💾 保存 API 设置</button></form>)}
-    {tab==='account'&&(<form onSubmit={saveProfile}><div className="form-group"><label>用户名称</label><input type="text" value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})} placeholder="机器人会这样称呼你..." maxLength={20}/><div className="form-hint">对话时机器人会用这个名字称呼你</div></div><div className="form-group"><label>用户头像</label><div style={{display:'flex',alignItems:'center',gap:12}}><AvatarUpload value={profile.avatar_url} onChange={v=>setProfile({...profile,avatar_url:v})} currentEmoji="👤"/><span style={{fontSize:12,color:'var(--txt2)'}}>显示在聊天消息旁</span></div></div><div className="form-group"><label>性别</label><select value={profile.gender} onChange={e=>setProfile({...profile,gender:e.target.value})}><option value="">不设置</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select><div className="form-hint">机器人会据此调整称呼方式（如 先生/女士/小哥哥/小姐姐）</div></div><button type="submit" className="btn btn-primary" style={{marginTop:'16px'}}>💾 保存个人资料</button></form>)}
+    {tab==='account'&&(<form onSubmit={saveProfile}>
+      <div className="form-group"><label>用户名称</label><input type="text" value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})} placeholder="机器人会这样称呼你..." maxLength={20}/><div className="form-hint">对话时机器人会用这个名字称呼你</div></div>
+      <div className="form-group"><label>用户头像</label><div style={{display:'flex',alignItems:'center',gap:12}}><AvatarUpload value={profile.avatar_url} onChange={v=>setProfile({...profile,avatar_url:v})} currentEmoji="👤"/><span style={{fontSize:12,color:'var(--txt2)'}}>显示在聊天消息旁</span></div></div>
+      <div className="form-group"><label>性别</label><select value={profile.gender} onChange={e=>setProfile({...profile,gender:e.target.value})}><option value="">不设置</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select><div className="form-hint">机器人会据此调整称呼方式（如 先生/女士/小哥哥/小姐姐）</div></div>
+      <button type="submit" className="btn btn-primary" style={{marginTop:'16px'}}>💾 保存个人资料</button>
+    </form>)}
     {tab==='sync'&&(<div><div className="stats-row"><div className="stat-card"><div className="stat-num">☁️</div><div className="stat-label">云端同步</div></div><div className="stat-card"><div className="stat-num">🔒</div><div className="stat-label">账号绑定</div></div></div><div className="sync-section"><h3>📤 导出备份</h3><p>下载包含所有机器人、消息和设置的备份文件</p><button className="btn btn-primary" onClick={handleExport}>📥 下载备份</button>{exportMsg&&<div className="error" style={{background:exportMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:exportMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{exportMsg}</div>}</div><div className="sync-section"><h3>📥 导入恢复</h3><p>从备份文件恢复数据（自动绑定当前账号）</p><label className="import-dropzone" style={{display:'block'}}><input type="file" accept=".json" onChange={handleFileImport} style={{display:'none'}}/>📁 选择备份文件 (.json)</label>{importMsg&&<div className="error" style={{background:importMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:importMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{importMsg}</div>}</div><div className="sync-section"><h3>🔄 实时同步说明</h3><p>所有数据自动保存在 Supabase 云端数据库。任何设备同一账号登录即自动同步。</p></div></div>)}
   </div>)
 }
 
+// ===== MainApp =====
 function MainApp(){
   const[bots,setBots]=useState([]);const[activeId,setActiveId]=useState(null);const[view,setView]=useState('chat');const[editBot,setEditBot]=useState(null);const[sidebarOpen,setSidebarOpen]=useState(!isMobile());const[email,setEmail]=useState('');const[userProfile,setUserProfile]=useState(null);
+
   useEffect(()=>{(async()=>{try{const{data}=await supabase.auth.getUser();setEmail(data.user?.email||'');await ensureSettings();await loadUserProfile();await loadBots()}catch(e){console.error('init:',e)}const h=()=>{setSidebarOpen(!isMobile())};window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h)})()},[]);
+
   const ensureSettings=async()=>{try{const uid=await getUserId();if(!uid)return;const{data,error}=await supabase.from('user_settings').select('user_id').eq('user_id',uid).maybeSingle();if(error&&error.code==='PGRST116'){await supabase.from('user_settings').insert({user_id:uid,api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'})}}catch(e){console.error('ensureSettings:',e)}};
+
   const loadUserProfile=async()=>{try{const uid=await getUserId();if(!uid)return;const{data}=await supabase.from('user_settings').select('display_name,avatar_url,gender').eq('user_id',uid).maybeSingle();if(data)setUserProfile(data)}catch(e){console.error('loadUserProfile:',e)}};
+
   const loadBots=async()=>{try{const{data}=await supabase.from('bots').select('*').order('updated_at',{ascending:false});setBots(data||[])}catch(e){console.error('loadBots:',e);setBots([])}};
+
   const handleHome=()=>{setActiveId(null);setView('chat')};
   const handleLogout=async()=>{try{await supabase.auth.signOut()}catch(e){console.error('logout:',e)}};
   const handleProfileClick=()=>{setView('settings_account')};
   const refresh=async()=>{await loadBots();await loadUserProfile()};
   const activeBot=bots.find(b=>b.id===activeId)||null;
+
   return(<div className="app"><Sidebar bots={bots} activeId={activeId} onSelect={id=>{setActiveId(id);setView('chat')}} onHome={handleHome} onCreate={()=>{setEditBot(null);setView('create')}} onEdit={b=>{setEditBot(b);setView('edit')}} onSettings={()=>setView('settings')} onProfileClick={handleProfileClick} open={sidebarOpen} onClose={()=>setSidebarOpen(false)} onLogout={handleLogout} email={email} userProfile={userProfile}/><main className="main">{view==='create'&&<BotEditor onDone={()=>{loadBots();setView('chat')}} onCancel={()=>{setView('chat')}}/>}{view==='edit'&&editBot&&<BotEditor bot={editBot} onDone={()=>{loadBots();setView('chat');setEditBot(null)}} onCancel={()=>{setView('chat')}}/>}{view==='settings'&&<SettingsView onBack={()=>setView('chat')} onRefresh={refresh} userProfile={userProfile}/>}{view==='settings_account'&&<SettingsView onBack={()=>setView('chat')} onRefresh={refresh} userProfile={userProfile} initialTab="account"/>}{view==='chat'&&activeBot&&<ChatWindow bot={activeBot} onUpdate={loadBots} onMenuClick={()=>setSidebarOpen(v=>!v)} userProfile={userProfile}/>}{view==='chat'&&!activeBot&&<EmptyState onMenuClick={()=>setSidebarOpen(v=>!v)}/>}</main></div>)
 }
 
