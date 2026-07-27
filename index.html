@@ -176,12 +176,14 @@ function Sidebar({bots,activeId,onSelect,onCreate,onEdit,onSettings,onHome,open,
       <div className="sidebar-logo" onClick={()=>{onHome();if(isMobile())onClose()}} title="回首页">AI角色扮演</div>
       <button className="sidebar-close" onClick={onClose}>✕</button>
     </div>
-    <div className="nav-row">
-      <button className="sidebar-btn" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角��</button>
+    <div className="nav-row" style={{paddingBottom:0}}>
+      <button className="sidebar-btn" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button>
       <button className="sidebar-btn" onClick={()=>setListOpen(!listOpen)}>📋 角色列表 {listOpen?'▾':'▸'}</button>
+    </div>
+    {listOpen&&<nav className="bot-list" style={{flex:'none',maxHeight:'40vh',margin:'0 10px'}}>{bots.map(b=>(<div key={b.id} className={`bot-item${b.id===activeId?' active':''}`} onClick={()=>h(b.id)}><span className="bot-item-avatar">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</span><span className="bot-item-name">{b.name}</span><button className="bot-item-edit" onClick={e=>{e.stopPropagation();onEdit(b);if(isMobile())onClose()}}>⚙</button></div>))}{bots.length===0&&<div className="bot-list-empty"><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></div>}</nav>}
+    <div className="nav-row" style={{paddingTop:0}}>
       <button className="sidebar-btn" onClick={()=>{onSettings();if(isMobile())onClose()}}>⚙️ 设置</button>
     </div>
-    {listOpen&&<nav className="bot-list">{bots.map(b=>(<div key={b.id} className={`bot-item${b.id===activeId?' active':''}`} onClick={()=>h(b.id)}><span className="bot-item-avatar">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</span><span className="bot-item-name">{b.name}</span><button className="bot-item-edit" onClick={e=>{e.stopPropagation();onEdit(b);if(isMobile())onClose()}}>⚙</button></div>))}{bots.length===0&&<div className="bot-list-empty"><p>还没有角色</p><p>点 ✨ 创建 来做一个～</p></div>}</nav>}
     <div style={{flex:1}}/>
     <div className="sidebar-footer" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>{onProfileClick();if(isMobile())onClose()}}>
       <Avatar url={userProfile?.avatar_url} emoji="👤" size={32}/>
