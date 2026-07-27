@@ -39,9 +39,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .sidebar-logo{font-size:16px;font-weight:700;color:#fff;cursor:pointer;transition:opacity .15s}.sidebar-logo:hover{opacity:.8}
 .sidebar-close{display:none;background:none;border:none;color:var(--side-muted);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px}
 .sidebar-actions{padding:8px 10px;display:flex;gap:6px}
-.sidebar-btn{flex:1;padding:10px 6px;border:none;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;color:#fff;background:var(--accent);font-family:inherit;font-weight:500;transition:all .15s;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-btn{width:100%;padding:10px 12px;border:none;border-radius:var(--radius-sm);font-size:14px;cursor:pointer;color:#fff;background:var(--accent);font-family:inherit;font-weight:500;transition:all .15s;text-align:center}
 .sidebar-btn:active{filter:brightness(1.1)}
-.nav-row{padding:8px 10px;display:flex;gap:6px}
+.nav-row{padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .bot-list{flex:1;overflow-y:auto;padding:4px 8px;-webkit-overflow-scrolling:touch}
 .bot-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;font-size:14px}
 .bot-item:active{background:var(--side-hover)}.bot-item.active{background:var(--side-active)}
@@ -176,10 +176,9 @@ function Sidebar({bots,activeId,onSelect,onCreate,onEdit,onSettings,onHome,open,
       <div className="sidebar-logo" onClick={()=>{onHome();if(isMobile())onClose()}} title="回首页">AI角色扮演</div>
       <button className="sidebar-close" onClick={onClose}>✕</button>
     </div>
-    {/* Nav row */}
     <div className="nav-row">
-      <button className="sidebar-btn" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建</button>
-      <button className="sidebar-btn" onClick={()=>setListOpen(!listOpen)}>📋 角色 {listOpen?'▾':'▸'}</button>
+      <button className="sidebar-btn" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角��</button>
+      <button className="sidebar-btn" onClick={()=>setListOpen(!listOpen)}>📋 角色列表 {listOpen?'▾':'▸'}</button>
       <button className="sidebar-btn" onClick={()=>{onSettings();if(isMobile())onClose()}}>⚙️ 设置</button>
     </div>
     {listOpen&&<nav className="bot-list">{bots.map(b=>(<div key={b.id} className={`bot-item${b.id===activeId?' active':''}`} onClick={()=>h(b.id)}><span className="bot-item-avatar">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</span><span className="bot-item-name">{b.name}</span><button className="bot-item-edit" onClick={e=>{e.stopPropagation();onEdit(b);if(isMobile())onClose()}}>⚙</button></div>))}{bots.length===0&&<div className="bot-list-empty"><p>还没有角色</p><p>点 ✨ 创建 来做一个～</p></div>}</nav>}
