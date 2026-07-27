@@ -8,7 +8,6 @@
 <title>AI角色扮演</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f8fafc;--bg2:#fff;--sidebar:#1e293b;--side-hover:#334155;--side-active:#3b82f6;--txt:#1e293b;--txt2:#64748b;--side-txt:#e2e8f0;--side-muted:#94a3b8;--border:#e2e8f0;--accent:#6366f1;--danger:#ef4444;--radius:12px;--radius-sm:8px;--safe-bottom:env(safe-area-inset-bottom,0px)}
@@ -112,9 +111,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 .sync-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
 .sync-section h3{font-size:15px;margin-bottom:4px}.sync-section p{font-size:12px;color:var(--txt2);margin-bottom:12px}
-.stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.stat-card{flex:1;min-width:100px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center}
-.stat-card .stat-num{font-size:24px;font-weight:700;color:var(--accent)}.stat-card .stat-label{font-size:11px;color:var(--txt2);margin-top:2px}
 .import-dropzone{border:2px dashed var(--border);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:all .2s;color:var(--txt2);font-size:13px}
 .import-dropzone:active,.import-dropzone:hover{border-color:var(--accent);color:var(--accent);background:var(--bg)}
 .wv-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .15s}
@@ -125,217 +121,476 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 </style>
 </head>
 <body><div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useRef}=React;
+<script>
 const SUPABASE_URL='https://tayaketmnrlzfrsfsqce.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRheWFrZXRtbnJsemZyc2ZzcWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODczMTMsImV4cCI6MjEwMDQ2MzMxM30.tFVRpbS4-FmJ4jaJ8AWXMVCjxBJlBZJNj0ukXraklXU';
-const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const AVATARS=['🤖','🧑‍🚀','🦊','🐱','🐶','🐼','🦄','🐉','🧙‍♂️','🧛','🧝','👻','😺','🦸','👽'];
 const COLORS=['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
+const {useState,useEffect,useRef}=React;
+let supabase;
+try{ supabase = window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }catch(e){ console.error('Supabase init:',e); }
+if(!supabase){
+  document.getElementById('root').innerHTML='<div style="padding:40px;text-align:center;color:#666;font-family:sans-serif"><h2>AI角色扮演</h2><p>网络加载失败，请检查网络后刷新页面</p></div>';
+} else {
 function isMobile(){return window.innerWidth<=768}
 function errMsg(e,f){if(!e)return f||'未知错误';if(typeof e==='string'&&e.length>0&&e!=='{}')return e;if(e.message&&typeof e.message==='string'&&e.message.length>1&&e.message!=='{}')return e.message.replace(/^AuthApiError:\s*/,'');if(e.status)return'服务器错误 (HTTP '+e.status+')';if(e.code)return'错误码: '+e.code;try{const s=JSON.stringify(e);if(s&&s!=='{}')return s}catch(_){}return f||'请求失败'}
 async function getUserId(){const{data:{user}}=await supabase.auth.getUser();return user?.id}
 function compressImage(file,maxW,maxH){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;if(w>maxW||h>maxH){const r=Math.min(maxW/w,maxH/h);w=Math.round(w*r);h=Math.round(h*r)}const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',0.7))};img.src=e.target.result};reader.onerror=reject;reader.readAsDataURL(file)})}
-function Avatar({url,emoji,size,style}){const s={width:size||32,height:size||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0,...style};if(url)return<div style={s}><img src={url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/></div>;return<div style={{...s,background:'var(--bg)'}}>{emoji||'🤖'}</div>}
 function userName(dn){return dn||'用户'}
 function buildSystemPrompt(bot,worldview,settings){
-  let p=`你是"${bot.name}"。\n`;
-  if(bot.personality) p+=`【性格设定】${bot.personality}\n`;
-  if(bot.backstory) p+=`【背景故事】${bot.backstory}\n`;
+  let p='你是"'+bot.name+'"。\n';
+  if(bot.personality) p+='【性格设定】'+bot.personality+'\n';
+  if(bot.backstory) p+='【背景故事】'+bot.backstory+'\n';
   if(worldview){
-    p+=`【世界观】时代背景: ${worldview.era||'未设定'}；科技水平: ${worldview.technology||'未设定'}；世界大事件: ${worldview.world_events||'无'}\n`;
-    p+=`【时代约束】严格遵守世界观设定，不能出现不符合该时代的物品、概念、科技或事件。\n`;
+    p+='【世界观】时代背景: '+(worldview.era||'未设定')+'；科技水平: '+(worldview.technology||'未设定')+'；世界大事件: '+(worldview.world_events||'无')+'\n';
+    p+='【时代约束】严格遵守世界观设定，不能出现不符合该时代的物品、概念、科技或事件。\n';
   }
   const uname=userName(settings.display_name);
   const g=settings.gender==='male'?'男性':settings.gender==='female'?'女性':'';
-  p+=`【对话对象】${g?'名叫'+uname+'的'+g+'用户':'名叫'+uname+'的用户'}。\n`;
-  p+=`【对话规则】\n`;
-  p+=`1. 用圆括号（）表示动作描写或心理活动，括号外的内容为对话。\n`;
-  p+=`2. 动作和心理活动使用第三人称视角，称呼自己为"${bot.name}"。\n`;
-  p+=`3. "()"内的描述只用于动作与心理活动，不用于对话。\n`;
-  p+=`4. 用户可以使用金手指改变剧情走向。当用户明确使用金手指时，完全按用户意愿推进剧情。\n`;
-  if(worldview) p+=`5. 严格遵守世界观设定中的所有约束。\n`;
+  p+='【对话对象】'+(g?'名叫'+uname+'的'+g+'用户':'名叫'+uname+'的用户')+'。\n';
+  p+='【对话规则】\n';
+  p+='1. 用圆括号（）表示动作描写或心理活动，括号外的内容为对话。\n';
+  p+='2. 动作和心理活动使用第三人称视角，称呼自己为"'+bot.name+'"。\n';
+  p+='3. "()"内的描述只用于动作与心理活动，不用于对话。\n';
+  p+='4. 用户可以使用金手指改变剧情走向。当用户明确使用金手指时，完全按用户意愿推进剧情。\n';
+  if(worldview) p+='5. 严格遵守世界观设定中的所有约束。\n';
   return p;
 }
 
-// ===== Auth =====
+function e(type,props,...children){const filtered=[];for(let i=0;i<children.length;i++){const c=children[i];if(c===null||c===undefined||c===false)continue;if(typeof c==='string'||typeof c==='number'){filtered.push(React.createElement('span',{key:'t'+i},String(c)));continue;}filtered.push(c);}return React.createElement(type,props||{},...filtered);}
+
+function Avatar(p){if(p.url){return e('div',{style:{width:p.size||32,height:p.size||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0,...(p.style||{})}},e('img',{src:p.url,style:{width:'100%',height:'100%',objectFit:'cover'},alt:''}));}return e('div',{style:{width:p.size||32,height:p.size||32,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:'50%',flexShrink:0,background:'var(--bg)',...(p.style||{})}},p.emoji||'🤖');}
+
 function AuthPage(){
   const[mode,setMode]=useState('login');const[email,setEmail]=useState('');const[password,setPassword]=useState('');const[loading,setLoading]=useState(false);const[err,setErr]=useState('');
-  const handleSubmit=async e=>{e.preventDefault();if(!email.trim()||!password){setErr('请填写邮箱和密码');return;}setLoading(true);setErr('');try{if(mode==='login'){const{error}=await supabase.auth.signInWithPassword({email,password});if(error){setErr(errMsg(error,'登录失败'));setLoading(false);return}}else{if(password.length<6){setErr('密码至少6位');setLoading(false);return}const{data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});if(error){setErr(errMsg(error,'注册失败'));setLoading(false);return}setErr(data?.session?'✅ 注册成功！自动登录中...':'✅ 注册成功！请切换到登录页登录');if(!data?.session)setMode('login');setPassword('')}}catch(e){setErr(errMsg(e,'网络错误'))}setLoading(false)};
-  return(<div className="auth-page"><div className="auth-card"><div className="auth-title">AI角色扮演</div><div className="auth-sub">创造属于你的故事</div>{err&&<div className="auth-error">{err}</div>}<form onSubmit={handleSubmit}><div className="auth-field"><label>邮箱</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" autoFocus/></div><div className="auth-field"><label>密码</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==='login'?'输入密码':'设置密码（至少6位）'}/></div><button className="auth-btn" type="submit" disabled={loading}>{loading?'处理中...':mode==='login'?'登录':'注册'}</button></form><div className="auth-toggle">{mode==='login'?<>没有账号？<a onClick={()=>{setMode('register');setErr('')}}>注册</a></>:<>已有账号？<a onClick={()=>{setMode('login');setErr('')}}>登录</a></>}</div></div></div>)
-}
-function App(){const[session,setSession]=useState(null);const[loading,setLoading]=useState(true);useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,session)=>setSession(session));return()=>subscription.unsubscribe()},[]);if(loading)return<div className="auth-page"><div style={{color:'var(--txt2)'}}>加载中...</div></div>;if(!session)return<AuthPage/>;return<MainApp/>}
-function AvatarUpload({value,onChange,currentEmoji}){
-  const handleFile=async e=>{const f=e.target.files?.[0];if(!f)return;try{const b64=await compressImage(f,200,200);onChange(b64)}catch(err){}};
-  const handleClear=()=>{onChange('')};
-  return(<div className="avatar-upload"><label className="avatar-preview">{value&&value.startsWith('data:')?<img src={value} alt=""/>:currentEmoji||'📷'}</label><input type="file" accept="image/*" onChange={handleFile}/>{value&&value.startsWith('data:')&&<button className="avatar-clear" onClick={e=>{e.preventDefault();handleClear()}}>✕</button>}</div>)
+  const handleSubmit=async()=>{
+    if(!email.trim()||!password){setErr('请填写邮箱和密码');return;}
+    setLoading(true);setErr('');
+    try{
+      if(mode==='login'){
+        const{error}=await supabase.auth.signInWithPassword({email,password});
+        if(error){setErr(errMsg(error,'登录失败'));setLoading(false);return;}
+      } else {
+        if(password.length<6){setErr('密码至少6位');setLoading(false);return;}
+        const{data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});
+        if(error){setErr(errMsg(error,'注册失败'));setLoading(false);return;}
+        if(data?.session){setErr('✅ 注册成功！自动登录中...');} else {
+          setErr('✅ 注册成功！请切换到登录页登录');setMode('login');
+        }
+        setPassword('');
+      }
+    }catch(e){setErr(errMsg(e,'网络错误'));}
+    setLoading(false);
+  };
+  return e('div',{className:'auth-page'},
+    e('div',{className:'auth-card'},
+      e('div',{className:'auth-title'},'AI角色扮演'),
+      e('div',{className:'auth-sub'},'创造属于你的故事'),
+      err&&e('div',{className:'auth-error'},err),
+      e('form',{onSubmit:e=>{e.preventDefault();handleSubmit();},style:{display:'contents'}},
+        e('div',{className:'auth-field'},
+          e('label',null,'邮箱'),
+          e('input',{type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'your@email.com',autoFocus:true})
+        ),
+        e('div',{className:'auth-field'},
+          e('label',null,'密码'),
+          e('input',{type:'password',value:password,onChange:e=>setPassword(e.target.value),placeholder:mode==='login'?'输入密码':'设置密码（至少6位）'})
+        ),
+        e('button',{className:'auth-btn',type:'submit',disabled:loading},loading?'处理中...':mode==='login'?'登录':'注册')
+      ),
+      e('div',{className:'auth-toggle'},mode==='login'?`没有账号？`:'已有账号？',
+        e('a',{onClick:()=>{setMode(mode==='login'?'register':'login');setErr('')}},mode==='login'?'注册':'登录')
+      )
+    )
+  );
 }
 
-// ===== Sidebar =====
-function Sidebar({bots,activeId,onSelect,onCreate,onEdit,onSettings,onHome,open,onClose,onLogout,email,userProfile,onProfileClick,onCreateWorldview,onListWorldviews,listOpen,setListOpen}){
-  return(<><aside className={`sidebar${open?' open':''}`}>
-    <div className="sidebar-header"><div className="sidebar-logo" onClick={()=>{onHome();if(isMobile())onClose()}} title="回首页">AI角色扮演</div><button className="sidebar-close" onClick={onClose}>✕</button></div>
-    <div className="nav-row" style={{paddingBottom:3}}>
-      <button className="sidebar-btn" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button>
-      <button className="sidebar-btn" onClick={()=>setListOpen(!listOpen)}>📋 角色列表 {listOpen?'▾':'▸'}</button>
-    </div>
-    {listOpen&&<nav className="bot-list" style={{flex:'none',maxHeight:'30vh',margin:'0 10px',marginBottom:6}}>{bots.map(b=>(<div key={b.id} className={`bot-item${b.id===activeId?' active':''}`} onClick={()=>{onSelect(b.id);if(isMobile())onClose()}}><span className="bot-item-avatar">{b.avatar_url?<img src={b.avatar_url} alt=""/>:b.avatar}</span><span className="bot-item-name">{b.name}</span><button className="bot-item-edit" onClick={e=>{e.stopPropagation();onEdit(b);if(isMobile())onClose()}}>⚙</button></div>))}{bots.length===0&&<div className="bot-list-empty"><p>还没有角色</p></div>}</nav>}
-    <div className="nav-row" style={{paddingTop:3}}>
-      <button className="sidebar-btn" style={{background:'var(--accent)',opacity:.85}} onClick={()=>{onCreateWorldview();if(isMobile())onClose()}}>🌍 创建世界观</button>
-      <button className="sidebar-btn" style={{background:'var(--accent)',opacity:.85}} onClick={()=>{onListWorldviews();if(isMobile())onClose()}}>📚 世界观列表</button>
-      <button className="sidebar-btn" style={{background:'var(--side-hover)'}} onClick={()=>{onSettings();if(isMobile())onClose()}}>⚙️ 设置</button>
-    </div>
-    <div style={{flex:1}}/>
-    <div className="sidebar-footer" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}} onClick={()=>{onProfileClick();if(isMobile())onClose()}}>
-      <Avatar url={userProfile?.avatar_url} emoji="👤" size={32}/>
-      <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,color:'var(--side-txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{userName(userProfile?.display_name)}</div>{email&&<div className="logout-user">{email}</div>}</div>
-      <button className="logout-btn" onClick={e=>{e.stopPropagation();onLogout()}} title="退出登录">⇱</button>
-    </div>
-  </aside><div className={`sidebar-overlay${open?' show':''}`} onClick={onClose}/></>)
+function AvatarUpload(p){
+  const handleFile=async ev=>{const f=ev.target.files?.[0];if(!f)return;try{const b64=await compressImage(f,200,200);p.onChange(b64);}catch(err){}};
+  const hasImg=p.value&&p.value.startsWith('data:');
+  return e('div',{className:'avatar-upload'},
+    e('label',{className:'avatar-preview'},hasImg?e('img',{src:p.value,alt:''}):p.currentEmoji||'📷'),
+    e('input',{type:'file',accept:'image/*',onChange:handleFile}),
+    hasImg&&e('button',{className:'avatar-clear',onClick:e=>{e.preventDefault();p.onChange('')},type:'button'},'✕')
+  );
 }
 
-// ===== Chat =====
-function ChatWindow({bot,onUpdate,onMenuClick,userProfile,worldviews}){
-  const[msgs,setMsgs]=useState([]);const[input,setInput]=useState('');const[loading,setLoading]=useState(false);const[err,setErr]=useState('');const endRef=useRef(null);const inputRef=useRef(null);
-  const loadMessages=async()=>{try{const{data}=await supabase.from('messages').select('*').eq('bot_id',bot.id).order('created_at',{ascending:true});setMsgs(data||[])}catch(e){console.error(e);setMsgs([])}};
-  useEffect(()=>{loadMessages();setErr('');setInput('');setTimeout(()=>inputRef.current?.focus(),100)},[bot.id]);
-  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[msgs,loading]);
+function Sidebar(p){
+  const h=id=>{p.onSelect(id);if(isMobile())p.onClose();};
+  return e(React.Fragment,null,
+    e('aside',{className:'sidebar '+(p.open?'open':'')},
+      e('div',{className:'sidebar-header'},
+        e('div',{className:'sidebar-logo',onClick:()=>{p.onHome();if(isMobile())p.onClose();},title:'回首页'},'AI角色扮演'),
+        p.open&&e('button',{className:'sidebar-close',onClick:p.onClose},'✕')
+      ),
+      e('div',{className:'nav-row',style:{paddingBottom:3}},
+        e('button',{className:'sidebar-btn',onClick:()=>{p.onCreate();if(isMobile())p.onClose();}},'✨ 创建角色'),
+        e('button',{className:'sidebar-btn',onClick:()=>p.setListOpen(!p.listOpen)},'📋 角色列表 '+(p.listOpen?'▾':'▸'))
+      ),
+      p.listOpen&&e('nav',{className:'bot-list',style:{flex:'none',maxHeight:'30vh',margin:'0 10px',marginBottom:6}},
+        p.bots.map(b=>e('div',{key:b.id,className:'bot-item '+(b.id===p.activeId?'active':''),onClick:()=>h(b.id)},
+          e('span',{className:'bot-item-avatar'},b.avatar_url?e('img',{src:b.avatar_url,alt:''}):b.avatar),
+          e('span',{className:'bot-item-name'},b.name),
+          e('button',{className:'bot-item-edit',onClick:ev=>{ev.stopPropagation();p.onEdit(b);if(isMobile())p.onClose();}},'⚙')
+        )),
+        p.bots.length===0&&e('div',{className:'bot-list-empty'},e('p',null,'还没有角色'))
+      ),
+      e('div',{className:'nav-row',style:{paddingTop:3}},
+        e('button',{className:'sidebar-btn',style:{background:'var(--accent)',opacity:.85},onClick:()=>{p.onCreateWorldview();if(isMobile())p.onClose();}},'🌍 创建世界观'),
+        e('button',{className:'sidebar-btn',style:{background:'var(--accent)',opacity:.85},onClick:()=>{p.onListWorldviews();if(isMobile())p.onClose();}},'📚 世界观列表'),
+        e('button',{className:'sidebar-btn',style:{background:'var(--side-hover)'},onClick:()=>{p.onSettings();if(isMobile())p.onClose();}},'⚙️ 设置')
+      ),
+      e('div',{style:{flex:1}}),
+      e('div',{className:'sidebar-footer',style:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'},onClick:()=>{p.onProfileClick();if(isMobile())p.onClose();}},
+        e(Avatar,{url:p.userProfile?.avatar_url,emoji:'👤',size:32}),
+        e('div',{style:{flex:1,minWidth:0}},
+          e('div',{style:{fontSize:13,color:'var(--side-txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},userName(p.userProfile?.display_name)),
+          p.email&&e('div',{className:'logout-user'},p.email)
+        ),
+        e('button',{className:'logout-btn',onClick:ev=>{ev.stopPropagation();p.onLogout();},title:'退出登录'},'⇱')
+      )
+    ),
+    e('div',{className:'sidebar-overlay '+(p.open?'show':''),onClick:p.onClose})
+  );
+}
+
+function MessageBubble(p){
+  const u=p.msg.role==='user';
+  return e('div',{className:'msg-row '+(u?'user':'')},
+    !u?e('div',{className:'msg-avatar',style:{background:p.color+'20'}},typeof p.botAvatar==='string'&&p.botAvatar.startsWith('data:')?e('img',{src:p.botAvatar,alt:''}):p.botAvatar):e('div',{className:'msg-avatar user-avatar'},p.userAvatar?e('img',{src:p.userAvatar,alt:''}):'👤'),
+    e('div',{className:'msg-bubble '+(u?'user-bubble':'assistant-bubble'),style:!u?{borderLeft:'3px solid '+p.color}:{}},p.msg.content),
+    !u&&e('div',{style:{width:32,flexShrink:0}})
+  );
+}
+
+function Typing(p){
+  return e('div',{className:'typing'},
+    e('div',{className:'msg-avatar',style:{background:p.color+'20'}},typeof p.avatar==='string'&&p.avatar.startsWith('data:')?e('img',{src:p.avatar,alt:''}):p.avatar),
+    e('div',{className:'typing-dots'},e('span'),e('span'),e('span')),
+    e('span',null,p.name+' 正在输入...')
+  );
+}
+
+function ChatWindow(p){
+  const[msgs,setMsgs]=useState([]);const[input,setInput]=useState('');const[loading,setLoading]=useState(false);const[err,setErr]=useState('');
+  const endRef=useRef(null);const inputRef=useRef(null);
+  const loadMessages=async()=>{try{const{data}=await supabase.from('messages').select('*').eq('bot_id',p.bot.id).order('created_at',{ascending:true});setMsgs(data||[]);}catch(err){console.error(err);setMsgs([]);}};
+  useEffect(()=>{loadMessages();setErr('');setInput('');setTimeout(()=>inputRef.current?.focus(),100);},[p.bot.id]);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[msgs,loading]);
+
   const handleSend=async()=>{
     const content=input.trim();if(!content||loading)return;
     setInput('');setLoading(true);setErr('');
-    const optimistic={id:'temp_'+Date.now(),bot_id:bot.id,role:'user',content,created_at:new Date().toISOString()};
-    setMsgs(p=>[...p,optimistic]);
+    const optimistic={id:'temp_'+Date.now(),bot_id:p.bot.id,role:'user',content,created_at:new Date().toISOString()};
+    setMsgs(m=>[...m,optimistic]);
     try{
       const uid=await getUserId();
       const{data:s,error:sErr}=await supabase.from('user_settings').select('*').single();
-      if(sErr||!s?.api_key){setErr('请先在设置中配置 API Key');setMsgs(p=>p.filter(m=>m.id!==optimistic.id));setLoading(false);return}
-      const wv=bot.worldview_id?worldviews.find(w=>w.id===bot.worldview_id):null;
-      const sysPrompt=buildSystemPrompt(bot,wv,s);
-      const{error:insErr}=await supabase.from('messages').insert({user_id:uid,bot_id:bot.id,role:'user',content});
-      if(insErr){setErr('保存失败');setMsgs(p=>p.filter(m=>m.id!==optimistic.id));setLoading(false);return}
-      const history=(await supabase.from('messages').select('role,content').eq('bot_id',bot.id).order('created_at',{ascending:true}).limit(20)).data||[];
+      if(sErr||!s?.api_key){setErr('请先在设置中配置 API Key');setMsgs(m=>m.filter(x=>x.id!==optimistic.id));setLoading(false);return;}
+      const wv=p.bot.worldview_id?(p.worldviews||[]).find(w=>w.id===p.bot.worldview_id):null;
+      const sysPrompt=buildSystemPrompt(p.bot,wv,s);
+      const{error:insErr}=await supabase.from('messages').insert({user_id:uid,bot_id:p.bot.id,role:'user',content});
+      if(insErr){setErr('保存失败');setMsgs(m=>m.filter(x=>x.id!==optimistic.id));setLoading(false);return;}
+      const history=(await supabase.from('messages').select('role,content').eq('bot_id',p.bot.id).order('created_at',{ascending:true}).limit(20)).data||[];
       const messages=[{role:'system',content:sysPrompt},...history.map(m=>({role:m.role,content:m.content}))];
-      const res=await fetch(`${s.api_base_url||'https://api.deepseek.com'}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${s.api_key}`},body:JSON.stringify({model:bot.model||'deepseek-chat',messages,temperature:.8,max_tokens:2000})});
-      if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`)}
+      const res=await fetch((s.api_base_url||'https://api.deepseek.com')+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.api_key},body:JSON.stringify({model:p.bot.model||'deepseek-chat',messages,temperature:.8,max_tokens:2000})});
+      if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+res.status);}
       const d=await res.json();const reply=d.choices?.[0]?.message?.content||'...';
-      await supabase.from('messages').insert({user_id:uid,bot_id:bot.id,role:'assistant',content:reply});
-      await supabase.from('bots').update({updated_at:new Date().toISOString()}).eq('id',bot.id);
-      await loadMessages();onUpdate();
-    }catch(e){setErr('发送失败：'+errMsg(e));setMsgs(p=>p.filter(m=>m.id!==optimistic.id))}
-    finally{setLoading(false);inputRef.current?.focus()}
+      await supabase.from('messages').insert({user_id:uid,bot_id:p.bot.id,role:'assistant',content:reply});
+      await supabase.from('bots').update({updated_at:new Date().toISOString()}).eq('id',p.bot.id);
+      await loadMessages();p.onUpdate();
+    }catch(err){setErr('发送失败：'+errMsg(err));setMsgs(m=>m.filter(x=>x.id!==optimistic.id));}
+    finally{setLoading(false);inputRef.current?.focus();}
   };
-  const handleClear=async()=>{if(!window.confirm('确定清空聊天记录？'))return;try{await supabase.from('messages').delete().eq('bot_id',bot.id);setMsgs([])}catch(e){setErr('清空失败：'+errMsg(e))}};
-  return(<div className="chat"><div className="chat-header" style={{borderBottomColor:bot.theme_color}}><button className="hamburger" onClick={onMenuClick}>☰</button><div className="chat-header-info"><div className="chat-header-avatar">{bot.avatar_url?<img src={bot.avatar_url} alt=""/>:bot.avatar}</div><div className="chat-header-text"><div className="chat-header-name">{bot.name}</div></div></div><button className="btn btn-ghost btn-sm" onClick={handleClear}>🗑</button></div><div className="msgs">{msgs.length===0&&<div className="msgs-empty"><div style={{fontSize:40}}>{bot.avatar_url?<img src={bot.avatar_url} style={{width:40,height:40,borderRadius:8,objectFit:'cover'}} alt=""/>:bot.avatar}</div><h3>开始和{bot.name}聊天吧！</h3></div>}{msgs.map(m=><MessageBubble key={m.id} msg={m} botAvatar={bot.avatar_url||bot.avatar} userAvatar={userProfile?.avatar_url} color={bot.theme_color}/>)}{loading&&<Typing avatar={bot.avatar_url||bot.avatar} name={bot.name} color={bot.theme_color}/>}{err&&<div className="error">{err}</div>}<div ref={endRef}/></div><div className="chat-input-area"><textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}}} placeholder={`跟${bot.name}说点什么...`} rows={1} disabled={loading} autoFocus/><button className="btn btn-primary send-btn" onClick={handleSend} disabled={!input.trim()||loading}>➤</button></div></div>)
-}
-function MessageBubble({msg,botAvatar,userAvatar,color}){const u=msg.role==='user';return(<div className={`msg-row${u?' user':''}`}>{!u?<div className="msg-avatar" style={{background:color+'20'}}>{typeof botAvatar==='string'&&botAvatar.startsWith('data:')?<img src={botAvatar} alt=""/>:botAvatar}</div>:<div className="msg-avatar user-avatar">{userAvatar?<img src={userAvatar} alt=""/>:'👤'}</div>}<div className={`msg-bubble${u?' user-bubble':' assistant-bubble'}`} style={!u?{borderLeft:'3px solid '+color}:{}}>{msg.content}</div>{!u&&<div style={{width:32,flexShrink:0}}/>}</div>)}
-function Typing({avatar,name,color}){return<div className="typing"><div className="msg-avatar" style={{background:color+'20'}}>{typeof avatar==='string'&&avatar.startsWith('data:')?<img src={avatar} alt=""/>:avatar}</div><div className="typing-dots"><span/><span/><span/></div><span>{name} 正在输入...</span></div>}
 
-// ===== BotEditor =====
-function BotEditor({bot,onDone,onCancel,worldviews}){
-  const[form,setForm]=useState({name:bot?.name||'',avatar:bot?.avatar||'🤖',avatar_url:bot?.avatar_url||'',personality:bot?.personality||'',backstory:bot?.backstory||'',theme_color:bot?.theme_color||'#6366f1',model:bot?.model||'deepseek-chat',worldview_id:bot?.worldview_id||''});
-  const[saving,setSaving]=useState(false);const[err,setErr]=useState('');const isEdit=!!bot;
-  const handleSubmit=async e=>{e.preventDefault();if(!form.name.trim()){setErr('角色名不能为空！');return}setSaving(true);setErr('');try{const uid=await getUserId();const data={...form,worldview_id:form.worldview_id||null};if(!data.avatar_url)data.avatar_url='';if(isEdit){await supabase.from('bots').update(data).eq('id',bot.id)}else{const{error:e2}=await supabase.from('bots').insert({...data,user_id:uid});if(e2)throw e2}onDone()}catch(e){setErr('保存失败：'+errMsg(e));setSaving(false)}};
-  const handleDelete=async()=>{if(!window.confirm(`确定删除「${bot.name}」？`))return;try{await supabase.from('bots').delete().eq('id',bot.id);onDone()}catch(e){setErr('删除失败：'+errMsg(e))}};
-  return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onCancel}>← 返回</button><h2>{isEdit?'✏️ 编辑角色':'✨ 创建角色'}</h2></div>{err&&<div className="error">{err}</div>}<form onSubmit={handleSubmit}>
-    <div className="section-title">基本信息</div>
-    <div className="form-group"><label>角色名</label><input type="text" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="你的角色叫什么名字？" maxLength={30} autoFocus/></div>
-    <div className="form-group"><label>AI模型</label><input type="text" value={form.model} onChange={e=>setForm({...form,model:e.target.value})} placeholder="deepseek-chat"/></div>
-    <div className="section-title">外貌设定</div>
-    <div className="form-group">
-      <label>头像</label>
-      <div className="picker" style={{marginBottom:8}}>{AVATARS.map(a=><button key={a} type="button" className={`picker-item${form.avatar===a&&!form.avatar_url?' sel':''}`} onClick={()=>setForm({...form,avatar:a,avatar_url:''})}>{a}</button>)}</div>
-      <div style={{display:'flex',alignItems:'center',gap:12}}><AvatarUpload value={form.avatar_url} onChange={v=>setForm({...form,avatar_url:v,avatar:v?'🤖':form.avatar})} currentEmoji={form.avatar}/><span style={{fontSize:12,color:'var(--txt2)'}}>上传自定义图片</span></div>
-    </div>
-    <div className="form-group"><label>主题色</label><div className="picker">{COLORS.map(c=><button key={c} type="button" className={`color-item${form.theme_color===c?' sel':''}`} style={{background:c}} onClick={()=>setForm({...form,theme_color:c})}/>)}</div></div>
-    <div className="section-title">性格设定</div>
-    <div className="form-group"><textarea value={form.personality} onChange={e=>setForm({...form,personality:e.target.value})} rows={3} placeholder="温柔体贴，说话轻声细语，偶尔撒娇..."/><div className="form-hint">描述角色的说话风格、情绪反应方式</div></div>
-    <div className="section-title">世界观</div>
-    <div className="form-group">
-      <label>选择世界观</label>
-      <select value={form.worldview_id||''} onChange={e=>setForm({...form,worldview_id:e.target.value})}>
-        <option value="">当前时间真实世界（默认）</option>
-        {worldviews.map(w=><option key={w.id} value={w.id}>{w.name} — {w.era||'未设定时代'}</option>)}
-      </select>
-      <div className="form-hint">选择角色所处的世界观。可在左侧「创建世界观」中自定义</div>
-    </div>
-    <div className="section-title">背景故事</div>
-    <div className="form-group"><textarea value={form.backstory} onChange={e=>setForm({...form,backstory:e.target.value})} rows={3} placeholder="描述你角色的身份、经历和故事背景..."/><div className="form-hint">角色的个人经历和故事线</div></div>
-    <div style={{display:'flex',gap:'8px',marginTop:'20px',flexWrap:'wrap'}}><button type="submit" className="btn btn-primary" disabled={saving}>{saving?'保存中...':isEdit?'💾 保存':'✨ 创建角色'}</button>{isEdit&&<button type="button" className="btn btn-danger" onClick={handleDelete}>🗑 删除</button>}<button type="button" className="btn btn-ghost" onClick={onCancel}>取消</button></div></form></div>)
+  const handleClear=async()=>{if(!window.confirm('确定清空聊天记录？'))return;try{await supabase.from('messages').delete().eq('bot_id',p.bot.id);setMsgs([]);}catch(err){setErr('清空失败：'+errMsg(err));}};
+
+  return e('div',{className:'chat'},
+    e('div',{className:'chat-header',style:{borderBottomColor:p.bot.theme_color}},
+      e('button',{className:'hamburger',onClick:p.onMenuClick},'☰'),
+      e('div',{className:'chat-header-info'},
+        e('div',{className:'chat-header-avatar'},p.bot.avatar_url?e('img',{src:p.bot.avatar_url,alt:''}):p.bot.avatar),
+        e('div',{className:'chat-header-text'},e('div',{className:'chat-header-name'},p.bot.name))
+      ),
+      e('button',{className:'btn btn-ghost btn-sm',onClick:handleClear},'🗑')
+    ),
+    e('div',{className:'msgs'},
+      msgs.length===0&&e('div',{className:'msgs-empty'},
+        e('div',{style:{fontSize:40}},p.bot.avatar_url?e('img',{src:p.bot.avatar_url,style:{width:40,height:40,borderRadius:8,objectFit:'cover'},alt:''}):p.bot.avatar),
+        e('h3',null,'开始和'+p.bot.name+'聊天吧！')
+      ),
+      msgs.map(m=>e(MessageBubble,{key:m.id,msg:m,botAvatar:p.bot.avatar_url||p.bot.avatar,userAvatar:p.userProfile?.avatar_url,color:p.bot.theme_color})),
+      loading&&e(Typing,{avatar:p.bot.avatar_url||p.bot.avatar,name:p.bot.name,color:p.bot.theme_color}),
+      err&&e('div',{className:'error'},err),
+      e('div',{ref:endRef})
+    ),
+    e('div',{className:'chat-input-area'},
+      e('textarea',{ref:inputRef,value:input,onChange:e=>setInput(e.target.value),onKeyDown:e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}},placeholder:'跟'+p.bot.name+'说点什么...',rows:1,disabled:loading,autoFocus:true}),
+      e('button',{className:'btn btn-primary send-btn',onClick:handleSend,disabled:!input.trim()||loading},'➤')
+    )
+  );
 }
 
-// ===== Worldview Editor =====
-function WorldviewEditor({wv,onDone,onCancel}){
-  const[form,setForm]=useState({name:wv?.name||'',era:wv?.era||'',technology:wv?.technology||'',world_events:wv?.world_events||''});
-  const[saving,setSaving]=useState(false);const[err,setErr]=useState('');const isEdit=!!wv;
-  const handleSubmit=async e=>{e.preventDefault();if(!form.name.trim()){setErr('世界观名称不能为空！');return}setSaving(true);setErr('');try{const uid=await getUserId();if(isEdit){await supabase.from('worldviews').update(form).eq('id',wv.id)}else{const{error:e2}=await supabase.from('worldviews').insert({...form,user_id:uid});if(e2)throw e2}onDone()}catch(e){setErr('保存失败：'+errMsg(e));setSaving(false)}};
-  const handleDelete=async()=>{if(!window.confirm(`确定删除世界观「${wv.name}」？使用此世界观的角色的世界观选择将被清空。`))return;try{await supabase.from('worldviews').delete().eq('id',wv.id);onDone()}catch(e){setErr('删除失败：'+errMsg(e))}};
-  return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onCancel}>← 返回</button><h2>{isEdit?'✏️ 编辑世界观':'🌍 创建世界观'}</h2></div>{err&&<div className="error">{err}</div>}<form onSubmit={handleSubmit}>
-    <div className="form-group"><label>世界观名称</label><input type="text" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="如：唐朝盛世、赛博朋克2077、魔法学院..." maxLength={30} autoFocus/></div>
-    <div className="form-group"><label>时代背景</label><input type="text" value={form.era} onChange={e=>setForm({...form,era:e.target.value})} placeholder="如：公元618-907年，唐朝时期"/></div>
-    <div className="form-group"><label>科技水平</label><input type="text" value={form.technology} onChange={e=>setForm({...form,technology:e.target.value})} placeholder="如：冷兵器时代，无电力，依靠畜力和人力"/></div>
-    <div className="form-group"><label>世界大事件</label><textarea value={form.world_events} onChange={e=>setForm({...form,world_events:e.target.value})} rows={4} placeholder="如：安史之乱即将爆发，各地藩镇割据..."/><div className="form-hint">描述这个世界正在发生或已发生的重要事件</div></div>
-    <div style={{display:'flex',gap:'8px',marginTop:'20px'}}><button type="submit" className="btn btn-primary" disabled={saving}>{saving?'保存中...':isEdit?'💾 保存':'🌍 创建世界观'}</button>{isEdit&&<button type="button" className="btn btn-danger" onClick={handleDelete}>🗑 删除</button>}<button type="button" className="btn btn-ghost" onClick={onCancel}>取消</button></div></form></div>)
+function BotEditor(p){
+  const[form,setForm]=useState({name:p.bot?.name||'',avatar:p.bot?.avatar||'🤖',avatar_url:p.bot?.avatar_url||'',personality:p.bot?.personality||'',backstory:p.bot?.backstory||'',theme_color:p.bot?.theme_color||'#6366f1',model:p.bot?.model||'deepseek-chat',worldview_id:p.bot?.worldview_id||''});
+  const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
+  const isEdit=!!p.bot;
+  const handleSubmit=async(ev)=>{ev.preventDefault();if(!form.name.trim()){setErr('角色名不能为空！');return;}setSaving(true);setErr('');try{const uid=await getUserId();const data={...form,worldview_id:form.worldview_id||null};if(!data.avatar_url)data.avatar_url='';if(isEdit){await supabase.from('bots').update(data).eq('id',p.bot.id);}else{const{error:e2}=await supabase.from('bots').insert({...data,user_id:uid});if(e2)throw e2;}p.onDone();}catch(err){setErr('保存失败：'+errMsg(err));setSaving(false);}};
+  const handleDelete=async()=>{if(!window.confirm('确定删除「'+p.bot.name+'」？'))return;try{await supabase.from('bots').delete().eq('id',p.bot.id);p.onDone();}catch(err){setErr('删除失败：'+errMsg(err));}};
+  
+  return e('div',{className:'editor'},
+    e('div',{className:'editor-header'},
+      e('button',{className:'btn btn-ghost',onClick:p.onCancel},'← 返回'),
+      e('h2',null,isEdit?'✏️ 编辑角色':'✨ 创建角色')
+    ),
+    err&&e('div',{className:'error'},err),
+    e('form',{onSubmit:handleSubmit,style:{display:'contents'}},
+      e('div',{className:'section-title'},'基本信息'),
+      e('div',{className:'form-group'},
+        e('label',null,'角色名'),
+        e('input',{type:'text',value:form.name,onChange:e=>setForm({...form,name:e.target.value}),placeholder:'你的角色叫什么名字？',maxLength:30,autoFocus:true})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'AI模型'),
+        e('input',{type:'text',value:form.model,onChange:e=>setForm({...form,model:e.target.value}),placeholder:'deepseek-chat'})
+      ),
+      e('div',{className:'section-title'},'外貌设定'),
+      e('div',{className:'form-group'},
+        e('label',null,'头像'),
+        e('div',{className:'picker',style:{marginBottom:8}},AVATARS.map(a=>e('button',{key:a,type:'button',className:'picker-item'+(form.avatar===a&&!form.avatar_url?' sel':''),onClick:()=>setForm({...form,avatar:a,avatar_url:''})},a))),
+        e('div',{style:{display:'flex',alignItems:'center',gap:12}},
+          e(AvatarUpload,{value:form.avatar_url,onChange:v=>setForm({...form,avatar_url:v,avatar:v?'🤖':form.avatar}),currentEmoji:form.avatar}),
+          e('span',{style:{fontSize:12,color:'var(--txt2)'}},'上传自定义图片')
+        )
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'主题色'),
+        e('div',{className:'picker'},COLORS.map(c=>e('button',{key:c,type:'button',className:'color-item'+(form.theme_color===c?' sel':''),style:{background:c},onClick:()=>setForm({...form,theme_color:c})})))
+      ),
+      e('div',{className:'section-title'},'性格设定'),
+      e('div',{className:'form-group'},
+        e('textarea',{value:form.personality,onChange:e=>setForm({...form,personality:e.target.value}),rows:3,placeholder:'温柔体贴，说话轻声细语...'}),
+        e('div',{className:'form-hint'},'描述角色的说话风格、情绪反应方式')
+      ),
+      e('div',{className:'section-title'},'世界观'),
+      e('div',{className:'form-group'},
+        e('label',null,'选择世界观'),
+        e('select',{value:form.worldview_id||'',onChange:e=>setForm({...form,worldview_id:e.target.value})},
+          e('option',{value:''},'当前时间真实世界（默认）'),
+          (p.worldviews||[]).map(w=>e('option',{key:w.id,value:w.id},w.name+' — '+(w.era||'未设定时代')))
+        ),
+        e('div',{className:'form-hint'},'可在左侧「创建世界观」中自定义')
+      ),
+      e('div',{className:'section-title'},'背景故事'),
+      e('div',{className:'form-group'},
+        e('textarea',{value:form.backstory,onChange:e=>setForm({...form,backstory:e.target.value}),rows:3,placeholder:'描述你角色的身份、经历和故事背景...'}),
+        e('div',{className:'form-hint'},'角色的个人经历和故事线')
+      ),
+      e('div',{style:{display:'flex',gap:'8px',marginTop:'20px',flexWrap:'wrap'}},
+        e('button',{type:'submit',className:'btn btn-primary',disabled:saving},saving?'保存中...':isEdit?'💾 保存':'✨ 创建角色'),
+        isEdit&&e('button',{type:'button',className:'btn btn-danger',onClick:handleDelete},'🗑 删除'),
+        e('button',{type:'button',className:'btn btn-ghost',onClick:p.onCancel},'取消')
+      )
+    )
+  );
 }
 
-// ===== Worldview List =====
-function WorldviewList({onBack,onEdit,onRefresh,worldviews}){
-  return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onBack}>← 返回</button><h2>📚 世界观列表</h2></div>
-    {worldviews.length===0?<div style={{textAlign:'center',color:'var(--txt2)',padding:40}}><p>还没有创建任何世界观</p><p style={{fontSize:13,marginTop:4}}>点击左侧「创建世界观」来添加</p></div>:
-    <div>{worldviews.map(w=>(<div key={w.id} className="wv-card" onClick={()=>onEdit(w)}>
-      <div style={{flex:1}}><div className="wv-card-name">{w.name}</div><div className="wv-card-desc">{w.era||'未设定时代'} · {w.technology||'未设定科技'}</div></div>
-      <span style={{color:'var(--txt2)',fontSize:12}}>编辑 ›</span>
-    </div>))}</div>
-  </div>)
+function WorldviewEditor(p){
+  const[form,setForm]=useState({name:p.wv?.name||'',era:p.wv?.era||'',technology:p.wv?.technology||'',world_events:p.wv?.world_events||''});
+  const[saving,setSaving]=useState(false);const[err,setErr]=useState('');
+  const isEdit=!!p.wv;
+  const handleSubmit=async(ev)=>{ev.preventDefault();if(!form.name.trim()){setErr('世界观名称不能为空！');return;}setSaving(true);setErr('');try{const uid=await getUserId();if(isEdit){await supabase.from('worldviews').update(form).eq('id',p.wv.id);}else{const{error:e2}=await supabase.from('worldviews').insert({...form,user_id:uid});if(e2)throw e2;}p.onDone();}catch(err){setErr('保存失败：'+errMsg(err));setSaving(false);}};
+  const handleDelete=async()=>{if(!window.confirm('确定删除世界观「'+p.wv.name+'」？'))return;try{await supabase.from('worldviews').delete().eq('id',p.wv.id);p.onDone();}catch(err){setErr('删除失败：'+errMsg(err));}};
+  return e('div',{className:'editor'},
+    e('div',{className:'editor-header'},
+      e('button',{className:'btn btn-ghost',onClick:p.onCancel},'← 返回'),
+      e('h2',null,isEdit?'✏️ 编辑世界观':'🌍 创建世界观')
+    ),
+    err&&e('div',{className:'error'},err),
+    e('form',{onSubmit:handleSubmit,style:{display:'contents'}},
+      e('div',{className:'form-group'},
+        e('label',null,'世界观名称'),
+        e('input',{type:'text',value:form.name,onChange:e=>setForm({...form,name:e.target.value}),placeholder:'如：唐朝盛世、赛博朋克2077',maxLength:30,autoFocus:true})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'时代背景'),
+        e('input',{type:'text',value:form.era,onChange:e=>setForm({...form,era:e.target.value}),placeholder:'如：公元618-907年，唐朝时期'})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'科技水平'),
+        e('input',{type:'text',value:form.technology,onChange:e=>setForm({...form,technology:e.target.value}),placeholder:'如：冷兵器时代'})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'世界大事件'),
+        e('textarea',{value:form.world_events,onChange:e=>setForm({...form,world_events:e.target.value}),rows:4,placeholder:'如：安史之乱即将爆发...'}),
+        e('div',{className:'form-hint'},'描述这个世界正在发生或已发生的重要事件')
+      ),
+      e('div',{style:{display:'flex',gap:'8px',marginTop:'20px'}},
+        e('button',{type:'submit',className:'btn btn-primary',disabled:saving},saving?'保存中...':isEdit?'💾 保存':'🌍 创建世界观'),
+        isEdit&&e('button',{type:'button',className:'btn btn-danger',onClick:handleDelete},'🗑 删除'),
+        e('button',{type:'button',className:'btn btn-ghost',onClick:p.onCancel},'取消')
+      )
+    )
+  );
 }
 
-// ===== Settings =====
-function SettingsView({onBack,onRefresh,userProfile,initialTab}){
-  const[tab,setTab]=useState(initialTab||'api');const[s,setS]=useState({api_key:'',api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'});const[profile,setProfile]=useState({display_name:'',avatar_url:'',gender:''});const[msg,setMsg]=useState('');const[loading,setLoading]=useState(true);const[exportMsg,setExportMsg]=useState('');const[importMsg,setImportMsg]=useState('');
-  useEffect(()=>{loadSettings()},[]);
-  const loadSettings=async()=>{try{const uid=await getUserId();if(!uid){setLoading(false);return}const{data,error}=await supabase.from('user_settings').select('*').eq('user_id',uid).maybeSingle();if(!error&&data){setS(data);setProfile({display_name:data.display_name||'',avatar_url:data.avatar_url||'',gender:data.gender||''})}}catch(e){console.error(e)}finally{setLoading(false)}};
-  const saveApi=async e=>{e.preventDefault();setMsg('');try{const uid=await getUserId();if(!uid){setMsg('❌ 未登录');return}const{error}=await supabase.from('user_settings').upsert({...s,user_id:uid});setMsg(error?'❌ 保存失败':'✅ 已保存！');setTimeout(()=>setMsg(''),2500)}catch(e){setMsg('❌ '+errMsg(e))}};
-  const saveProfile=async e=>{e.preventDefault();setMsg('');try{const uid=await getUserId();if(!uid){setMsg('❌ 未登录');return}const{error}=await supabase.from('user_settings').upsert({user_id:uid,display_name:profile.display_name||'',avatar_url:profile.avatar_url||'',gender:profile.gender||''});setMsg(error?'❌ 保存失败':'✅ 已保存！');onRefresh();setTimeout(()=>setMsg(''),2500)}catch(e){setMsg('❌ '+errMsg(e))}};
-  const handleExport=async()=>{try{const{data:bots}=await supabase.from('bots').select('*');const{data:msgs}=await supabase.from('messages').select('*');const blob=new Blob([JSON.stringify({bots,msgs,settings:s},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`chatbot-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);setExportMsg('✅ 导出成功')}catch(e){setExportMsg('❌ '+errMsg(e))}};
-  const handleFileImport=e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(!d.bots){setImportMsg('❌ 无效文件');return}const uid=await getUserId();for(const b of d.bots){await supabase.from('bots').insert({...b,user_id:uid})}setImportMsg('✅ 导入成功！');onRefresh()}catch(e){setImportMsg('❌ '+errMsg(e))}};reader.readAsText(file)};
-  if(loading)return<div className="editor"><p style={{color:'var(--txt2)',textAlign:'center',padding:20}}>加载中...</p></div>;
-  return(<div className="editor"><div className="editor-header"><button className="btn btn-ghost" onClick={onBack}>← 返回</button><h2>⚙️ 设置</h2></div><div className="tabs"><button className={`tab-btn${tab==='api'?' active':''}`} onClick={()=>setTab('api')}>🔑 API</button><button className={`tab-btn${tab==='account'?' active':''}`} onClick={()=>setTab('account')}>👤 账号</button><button className={`tab-btn${tab==='sync'?' active':''}`} onClick={()=>setTab('sync')}>🔄 数据</button></div>{msg&&<div className="error" style={{background:msg.includes('✅')?'#f0fdf4':'#fef2f2',color:msg.includes('✅')?'#16a34a':'#dc2626'}}>{msg}</div>}
-    {tab==='api'&&(<form onSubmit={saveApi}><div className="form-group"><label>API Key</label><input type="password" value={s.api_key||''} onChange={e=>setS({...s,api_key:e.target.value})} placeholder="输入 DeepSeek API Key..."/><div className="form-hint"><a href="https://platform.deepseek.com/api_keys" target="_blank">获取 Key</a></div></div><div className="form-group"><label>API Base URL</label><input type="text" value={s.api_base_url||''} onChange={e=>setS({...s,api_base_url:e.target.value})} placeholder="https://api.deepseek.com"/></div><div className="form-group"><label>默认模型</label><input type="text" value={s.default_model||''} onChange={e=>setS({...s,default_model:e.target.value})} placeholder="deepseek-chat"/></div><button type="submit" className="btn btn-primary" style={{marginTop:'16px'}}>💾 保存</button></form>)}
-    {tab==='account'&&(<form onSubmit={saveProfile}><div className="form-group"><label>用户名称</label><input type="text" value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})} placeholder="角色会这样称呼你" maxLength={20}/><div className="form-hint">对话时的称呼</div></div><div className="form-group"><label>头像</label><div style={{display:'flex',alignItems:'center',gap:12}}><AvatarUpload value={profile.avatar_url} onChange={v=>setProfile({...profile,avatar_url:v})} currentEmoji="👤"/></div></div><div className="form-group"><label>性别</label><select value={profile.gender} onChange={e=>setProfile({...profile,gender:e.target.value})}><option value="">不设置</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></div><button type="submit" className="btn btn-primary" style={{marginTop:'16px'}}>💾 保存</button></form>)}
-    {tab==='sync'&&(<div><div className="sync-section"><h3>📤 导出备份</h3><p>下载所有角色、消息和设置</p><button className="btn btn-primary" onClick={handleExport}>📥 下载备份</button>{exportMsg&&<div className="error" style={{background:exportMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:exportMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{exportMsg}</div>}</div><div className="sync-section"><h3>📥 导入恢复</h3><label className="import-dropzone" style={{display:'block'}}><input type="file" accept=".json" onChange={handleFileImport} style={{display:'none'}}/>📁 选择备份文件</label>{importMsg&&<div className="error" style={{background:importMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:importMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}}>{importMsg}</div>}</div></div>)}
-  </div>)
+function WorldviewList(p){
+  return e('div',{className:'editor'},
+    e('div',{className:'editor-header'},
+      e('button',{className:'btn btn-ghost',onClick:p.onBack},'← 返回'),
+      e('h2',null,'📚 世界观列表')
+    ),
+    p.worldviews.length===0?
+      e('div',{style:{textAlign:'center',color:'var(--txt2)',padding:40}},
+        e('p',null,'还没有创建任何世界观'),
+        e('p',{style:{fontSize:13,marginTop:4}},'点击左侧「创建世界观」来添加')
+      ):
+      e('div',null,p.worldviews.map(w=>e('div',{key:w.id,className:'wv-card',onClick:()=>p.onEdit(w)},
+        e('div',{style:{flex:1}},
+          e('div',{className:'wv-card-name'},w.name),
+          e('div',{className:'wv-card-desc'},(w.era||'未设定时代')+' · '+(w.technology||'未设定科技'))
+        ),
+        e('span',{style:{color:'var(--txt2)',fontSize:12}},'编辑 ›')
+      )))
+  );
 }
 
-// ===== MainApp =====
+function SettingsView(p){
+  const[tab,setTab]=useState(p.initialTab||'api');
+  const[s,setS]=useState({api_key:'',api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'});
+  const[profile,setProfile]=useState({display_name:'',avatar_url:'',gender:''});
+  const[msg,setMsg]=useState('');const[loading,setLoading]=useState(true);
+  const[exportMsg,setExportMsg]=useState('');const[importMsg,setImportMsg]=useState('');
+  useEffect(()=>{loadSettings();},[]);
+  const loadSettings=async()=>{try{const uid=await getUserId();if(!uid){setLoading(false);return;}const{data,error}=await supabase.from('user_settings').select('*').eq('user_id',uid).maybeSingle();if(!error&&data){setS(data);setProfile({display_name:data.display_name||'',avatar_url:data.avatar_url||'',gender:data.gender||''});}}catch(err){console.error(err);}finally{setLoading(false);}};
+  const saveApi=async()=>{setMsg('');try{const uid=await getUserId();if(!uid){setMsg('❌ 未登录');return;}const{error}=await supabase.from('user_settings').upsert({...s,user_id:uid});setMsg(error?'❌ 保存失败':'✅ 已保存！');setTimeout(()=>setMsg(''),2500);}catch(err){setMsg('❌ '+errMsg(err));}};
+  const saveProfile=async()=>{setMsg('');try{const uid=await getUserId();if(!uid){setMsg('❌ 未登录');return;}const{error}=await supabase.from('user_settings').upsert({user_id:uid,display_name:profile.display_name||'',avatar_url:profile.avatar_url||'',gender:profile.gender||''});setMsg(error?'❌ 保存失败':'✅ 已保存！');p.onRefresh();setTimeout(()=>setMsg(''),2500);}catch(err){setMsg('❌ '+errMsg(err));}};
+  const handleExport=async()=>{try{const{data:bots}=await supabase.from('bots').select('*');const{data:msgs}=await supabase.from('messages').select('*');const blob=new Blob([JSON.stringify({bots,msgs,settings:s},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='chatbot-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);setExportMsg('✅ 导出成功');}catch(err){setExportMsg('❌ '+errMsg(err));}};
+  const handleFileImport=(ev)=>{const file=ev.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(!d.bots){setImportMsg('❌ 无效文件');return;}const uid=await getUserId();for(const b of d.bots){await supabase.from('bots').insert({...b,user_id:uid});}setImportMsg('✅ 导入成功！');p.onRefresh();}catch(err){setImportMsg('❌ '+errMsg(err));}};reader.readAsText(file);};
+  if(loading)return e('div',{className:'editor'},e('p',{style:{color:'var(--txt2)',textAlign:'center',padding:20}},'加载中...'));
+  return e('div',{className:'editor'},
+    e('div',{className:'editor-header'},
+      e('button',{className:'btn btn-ghost',onClick:p.onBack},'← 返回'),
+      e('h2',null,'⚙️ 设置')
+    ),
+    e('div',{className:'tabs'},
+      e('button',{className:'tab-btn'+(tab==='api'?' active':''),onClick:()=>setTab('api')},'🔑 API'),
+      e('button',{className:'tab-btn'+(tab==='account'?' active':''),onClick:()=>setTab('account')},'👤 账号'),
+      e('button',{className:'tab-btn'+(tab==='sync'?' active':''),onClick:()=>setTab('sync')},'🔄 数据')
+    ),
+    msg&&e('div',{className:'error',style:{background:msg.includes('✅')?'#f0fdf4':'#fef2f2',color:msg.includes('✅')?'#16a34a':'#dc2626'}},msg),
+    tab==='api'?e('div',{style:{display:'contents'}},
+      e('div',{className:'form-group'},
+        e('label',null,'API Key'),
+        e('input',{type:'password',value:s.api_key||'',onChange:e=>setS({...s,api_key:e.target.value}),placeholder:'输入 DeepSeek API Key...'}),
+        e('div',{className:'form-hint'},'获取: ',e('a',{href:'https://platform.deepseek.com/api_keys',target:'_blank'},'DeepSeek 控制台'))
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'API Base URL'),
+        e('input',{type:'text',value:s.api_base_url||'',onChange:e=>setS({...s,api_base_url:e.target.value}),placeholder:'https://api.deepseek.com'})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'默认模型'),
+        e('input',{type:'text',value:s.default_model||'',onChange:e=>setS({...s,default_model:e.target.value}),placeholder:'deepseek-chat'})
+      ),
+      e('button',{className:'btn btn-primary',style:{marginTop:'16px'},onClick:saveApi},'💾 保存')
+    ):tab==='account'?e('div',{style:{display:'contents'}},
+      e('div',{className:'form-group'},
+        e('label',null,'用户名称'),
+        e('input',{type:'text',value:profile.display_name,onChange:e=>setProfile({...profile,display_name:e.target.value}),placeholder:'角色会这样称呼你',maxLength:20}),
+        e('div',{className:'form-hint'},'对话时的称呼')
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'头像'),
+        e(AvatarUpload,{value:profile.avatar_url,onChange:v=>setProfile({...profile,avatar_url:v}),currentEmoji:'👤'})
+      ),
+      e('div',{className:'form-group'},
+        e('label',null,'性别'),
+        e('select',{value:profile.gender,onChange:e=>setProfile({...profile,gender:e.target.value})},
+          e('option',{value:''},'不设置'),
+          e('option',{value:'male'},'男'),
+          e('option',{value:'female'},'女'),
+          e('option',{value:'other'},'其他')
+        )
+      ),
+      e('button',{className:'btn btn-primary',style:{marginTop:'16px'},onClick:saveProfile},'💾 保存')
+    ):e('div',null,
+      e('div',{className:'sync-section'},
+        e('h3',null,'📤 导出备份'),
+        e('p',null,'下载所有角色、消息和设置'),
+        e('button',{className:'btn btn-primary',onClick:handleExport},'📥 下载备份'),
+        exportMsg&&e('div',{className:'error',style:{background:exportMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:exportMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}},exportMsg)
+      ),
+      e('div',{className:'sync-section'},
+        e('h3',null,'📥 导入恢复'),
+        e('label',{className:'import-dropzone',style:{display:'block'}},
+          e('input',{type:'file',accept:'.json',onChange:handleFileImport,style:{display:'none'}}),
+          '📁 选择备份文件'
+        ),
+        importMsg&&e('div',{className:'error',style:{background:importMsg.includes('✅')?'#f0fdf4':'#fef2f2',color:importMsg.includes('✅')?'#16a34a':'#dc2626',marginTop:8,marginBottom:0}},importMsg)
+      )
+    )
+  );
+}
+
 function MainApp(){
-  const[bots,setBots]=useState([]);const[worldviews,setWorldviews]=useState([]);const[activeId,setActiveId]=useState(null);const[view,setView]=useState('chat');const[editBot,setEditBot]=useState(null);const[editWv,setEditWv]=useState(null);const[sidebarOpen,setSidebarOpen]=useState(!isMobile());const[email,setEmail]=useState('');const[userProfile,setUserProfile]=useState(null);const[listOpen,setListOpen]=useState(false);
+  const[bots,setBots]=useState([]);const[worldviews,setWorldviews]=useState([]);
+  const[activeId,setActiveId]=useState(null);const[view,setView]=useState('chat');
+  const[editBot,setEditBot]=useState(null);const[editWv,setEditWv]=useState(null);
+  const[sidebarOpen,setSidebarOpen]=useState(!isMobile());const[email,setEmail]=useState('');
+  const[userProfile,setUserProfile]=useState(null);const[listOpen,setListOpen]=useState(false);
 
-  useEffect(()=>{(async()=>{try{const{data}=await supabase.auth.getUser();setEmail(data.user?.email||'');await ensureSettings();await loadUserProfile();await loadAll()}catch(e){console.error('init:',e)}const h=()=>{setSidebarOpen(!isMobile())};window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h)})()},[]);
+  useEffect(()=>{(async()=>{try{const{data}=await supabase.auth.getUser();setEmail(data.user?.email||'');await ensureSettings();await loadUserProfile();await loadAll();}catch(err){console.error('init:',err);}const h=()=>{setSidebarOpen(!isMobile());};window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h);})();},[]);
 
-  const ensureSettings=async()=>{try{const uid=await getUserId();if(!uid)return;const{data,error}=await supabase.from('user_settings').select('user_id').eq('user_id',uid).maybeSingle();if(error&&error.code==='PGRST116'){await supabase.from('user_settings').insert({user_id:uid,api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'})}}catch(e){console.error(e)}};
-  const loadUserProfile=async()=>{try{const uid=await getUserId();if(!uid)return;const{data}=await supabase.from('user_settings').select('display_name,avatar_url,gender').eq('user_id',uid).maybeSingle();if(data)setUserProfile(data)}catch(e){console.error(e)}};
-  const loadAll=async()=>{try{const{data:b}=await supabase.from('bots').select('*').order('updated_at',{ascending:false});const{data:w}=await supabase.from('worldviews').select('*').order('updated_at',{ascending:false});setBots(b||[]);setWorldviews(w||[])}catch(e){console.error(e)}};
+  const ensureSettings=async()=>{try{const uid=await getUserId();if(!uid)return;const{data,error}=await supabase.from('user_settings').select('user_id').eq('user_id',uid).maybeSingle();if(error&&error.code==='PGRST116'){await supabase.from('user_settings').insert({user_id:uid,api_base_url:'https://api.deepseek.com',default_model:'deepseek-chat'});}}catch(err){console.error(err);}};
+  const loadUserProfile=async()=>{try{const uid=await getUserId();if(!uid)return;const{data}=await supabase.from('user_settings').select('display_name,avatar_url,gender').eq('user_id',uid).maybeSingle();if(data)setUserProfile(data);}catch(err){console.error(err);}};
+  const loadAll=async()=>{try{const{data:b}=await supabase.from('bots').select('*').order('updated_at',{ascending:false});const{data:w}=await supabase.from('worldviews').select('*').order('updated_at',{ascending:false});setBots(b||[]);setWorldviews(w||[]);}catch(err){console.error(err);}};
 
-  const handleHome=()=>{setActiveId(null);setView('chat')};
-  const handleLogout=async()=>{try{await supabase.auth.signOut()}catch(e){console.error(e)}};
-  const handleProfileClick=()=>{setView('settings_account')};
-  const refresh=async()=>{await loadAll();await loadUserProfile()};
+  const handleHome=()=>{setActiveId(null);setView('chat');};
+  const handleLogout=async()=>{try{await supabase.auth.signOut();}catch(err){console.error(err);}};
+  const handleProfileClick=()=>{setView('settings_account');};
+  const refresh=async()=>{await loadAll();await loadUserProfile();};
   const activeBot=bots.find(b=>b.id===activeId)||null;
 
-  return(<div className="app"><Sidebar bots={bots} activeId={activeId} onSelect={id=>{setActiveId(id);setView('chat')}} onHome={handleHome} onCreate={()=>{setEditBot(null);setView('create')}} onEdit={b=>{setEditBot(b);setView('edit')}} onSettings={()=>setView('settings')} onProfileClick={handleProfileClick} open={sidebarOpen} onClose={()=>setSidebarOpen(false)} onLogout={handleLogout} email={email} userProfile={userProfile} onCreateWorldview={()=>{setEditWv(null);setView('create_wv')}} onListWorldviews={()=>{setView('list_wv')}} listOpen={listOpen} setListOpen={setListOpen}/>
-  <main className="main">
-    {view==='create'&&<BotEditor onDone={()=>{loadAll();setView('chat')}} onCancel={()=>{setView('chat')}} worldviews={worldviews}/>}
-    {view==='edit'&&editBot&&<BotEditor bot={editBot} onDone={()=>{loadAll();setView('chat');setEditBot(null)}} onCancel={()=>{setView('chat')}} worldviews={worldviews}/>}
-    {view==='create_wv'&&<WorldviewEditor onDone={()=>{loadAll();setView('chat');setEditWv(null)}} onCancel={()=>{setView('chat')}}/>}
-    {view==='edit_wv'&&editWv&&<WorldviewEditor wv={editWv} onDone={()=>{loadAll();setView('list_wv');setEditWv(null)}} onCancel={()=>{setView('list_wv')}}/>}
-    {view==='list_wv'&&<WorldviewList onBack={()=>setView('chat')} worldviews={worldviews} onEdit={w=>{setEditWv(w);setView('edit_wv')}} onRefresh={loadAll}/>}
-    {view==='settings'&&<SettingsView onBack={()=>setView('chat')} onRefresh={refresh} userProfile={userProfile}/>}
-    {view==='settings_account'&&<SettingsView onBack={()=>setView('chat')} onRefresh={refresh} userProfile={userProfile} initialTab="account"/>}
-    {view==='chat'&&activeBot&&<ChatWindow bot={activeBot} onUpdate={loadAll} onMenuClick={()=>setSidebarOpen(v=>!v)} userProfile={userProfile} worldviews={worldviews}/>}
-    {view==='chat'&&!activeBot&&<EmptyState onMenuClick={()=>setSidebarOpen(v=>!v)}/>}
-  </main></div>)
+  return e('div',{className:'app'},
+    e(Sidebar,{bots,activeId,onSelect:id=>{setActiveId(id);setView('chat');},onHome:handleHome,onCreate:()=>{setEditBot(null);setView('create');},onEdit:b=>{setEditBot(b);setView('edit');},onSettings:()=>setView('settings'),onProfileClick:handleProfileClick,open:sidebarOpen,onClose:()=>setSidebarOpen(false),onLogout:handleLogout,email,userProfile,onCreateWorldview:()=>{setEditWv(null);setView('create_wv');},onListWorldviews:()=>setView('list_wv'),listOpen,setListOpen}),
+    e('main',{className:'main'},
+      view==='create'&&e(BotEditor,{onDone:()=>{loadAll();setView('chat');},onCancel:()=>setView('chat'),worldviews}),
+      view==='edit'&&editBot&&e(BotEditor,{bot:editBot,onDone:()=>{loadAll();setView('chat');setEditBot(null);},onCancel:()=>setView('chat'),worldviews}),
+      view==='create_wv'&&e(WorldviewEditor,{onDone:()=>{loadAll();setView('chat');setEditWv(null);},onCancel:()=>setView('chat')}),
+      view==='edit_wv'&&editWv&&e(WorldviewEditor,{wv:editWv,onDone:()=>{loadAll();setView('list_wv');setEditWv(null);},onCancel:()=>setView('list_wv')}),
+      view==='list_wv'&&e(WorldviewList,{onBack:()=>setView('chat'),worldviews,onEdit:w=>{setEditWv(w);setView('edit_wv');},onRefresh:loadAll}),
+      view==='settings'&&e(SettingsView,{onBack:()=>setView('chat'),onRefresh:refresh,userProfile}),
+      view==='settings_account'&&e(SettingsView,{onBack:()=>setView('chat'),onRefresh:refresh,userProfile,initialTab:'account'}),
+      view==='chat'&&activeBot&&e(ChatWindow,{bot:activeBot,onUpdate:loadAll,onMenuClick:()=>setSidebarOpen(v=>!v),userProfile,worldviews}),
+      view==='chat'&&!activeBot&&e(EmptyState,{onMenuClick:()=>setSidebarOpen(v=>!v)})
+    )
+  );
 }
-function EmptyState({onMenuClick}){return<div className="empty">{isMobile()&&<button className="hamburger" style={{display:'flex',marginBottom:12}} onClick={onMenuClick}>☰</button>}<div className="empty-icon">👋</div><h2>欢迎回来！</h2><p>创造属于你的故事。</p></div>}
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+function EmptyState(p){
+  return e('div',{className:'empty'},
+    isMobile()&&e('button',{className:'hamburger',style:{display:'flex',marginBottom:12},onClick:p.onMenuClick},'☰'),
+    e('div',{className:'empty-icon'},'👋'),
+    e('h2',null,'欢迎回来！'),
+    e('p',null,'创造属于你的故事。')
+  );
+}
+
+function App(){
+  const[session,setSession]=useState(null);const[loading,setLoading]=useState(true);
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false);});
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,session)=>setSession(session));
+    return()=>subscription.unsubscribe();
+  },[]);
+  if(loading)return e('div',{className:'auth-page'},e('div',{style:{color:'var(--txt2)'}},'加载中...'));
+  if(!session)return e(AuthPage,{});
+  return e(MainApp,{});
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(e(App,{}));
+}
 </script>
 </body>
 </html>
