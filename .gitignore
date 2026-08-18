@@ -1,0 +1,10 @@
+# 依赖
+node_modules/
+
+# 旧构建产物（主产物在 github-pages/ 和 deploy/）
+/index.html
+/upload/
+
+# 系统文件
+.DS_Store
+Thumbs.db
