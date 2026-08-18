@@ -93,11 +93,12 @@ node transform.js
 
 任选一种静态托管方式：
 
-**方式 A：GitHub Pages（推荐，开源项目标准）**
+**方式 A：GitHub Pages（推荐，项目自带自动部署）**
 
 1. 把整个项目推到你自己的 GitHub 仓库
-2. 仓库 **Settings → Pages**，Source 选 `Deploy from a branch`，分支选 `main`，目录选 `/ (root)` 或 `github-pages`
-3. 稍等片刻，访问 `https://你的用户名.github.io/仓库名/`
+2. 仓库 **Settings → Pages → Build and deployment → Source**，选择 **`GitHub Actions`**
+3. 项目已内置 `.github/workflows/deploy-pages.yml` 工作流，每次 `git push` 后会自动把 `github-pages/` 目录部署到 Pages
+4. 稍等片刻，访问 `https://你的用户名.github.io/仓库名/`
 
 **方式 B：CloudStudio（腾讯云）**
 
@@ -136,7 +137,9 @@ chatbot-app/
 ├── build.js                # 构建脚本：生成 HTML（含 JSX 源码 + 配置）
 ├── transform.js            # Babel 编译脚本：JSX → 纯 JS
 ├── supabase-complete.sql   # 完整建表脚本（部署必跑）
-├── github-pages/           # 构建产物（含 git 仓库）
+├── .github/workflows/      # GitHub Actions 自动部署配置
+│   └── deploy-pages.yml    # 自动部署 github-pages/ 到 GitHub Pages
+├── github-pages/           # 构建产物目录
 │   └── index.html          # 最终部署的单文件应用
 ├── deploy/                 # 构建产物副本
 ├── supabase-schema.sql     # 旧版建表脚本（保留）
