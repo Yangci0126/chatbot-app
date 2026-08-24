@@ -226,7 +226,7 @@
         <option value="fal-ai/stable-cascade">Stable Cascade</option>
         <option value="fal-ai/ideogram/v2">Ideogram v2</option>
         <option value="fal-ai/recraft-v3">Recraft v3</option>
-        <option value="fal-ai/bytedance/seedream/v3">Seedream v3</option>
+        <option value="fal-ai/bytedance/seedream/v3/text-to-image">Seedream v3（字节，支持中文）</option>
       </datalist>
       <div class="hint">模型 ID 可到 <a href="https://fal.ai/models" target="_blank" rel="noopener">fal.ai/models</a> 复制。</div>
     </div>
@@ -597,7 +597,9 @@
       // FLUX Pro 系列由服务决定格式，不传 output_format，必要时可用「自定义 JSON」覆盖
     } else {
       b.image_size = { width:w, height:h };
-      b.output_format = $("format").value;
+      let fmt = $("format").value;
+      if(fmt === "webp" && /flux/.test(modelId)) fmt = "png"; // FLUX 系列不支持 webp
+      b.output_format = fmt;
     }
     const steps = Number($("qualitySeg").dataset.q||35);
     if(/stable-diffusion-xl|stable-cascade/.test(modelId)){
@@ -653,6 +655,9 @@
       if(!res.ok){
         let msg = res.status+" "+res.statusText;
         try { const e = await res.json(); msg = e.message || e.detail || (e.errors&&e.errors[0]&&e.errors[0].message) || JSON.stringify(e); } catch(_){}
+        if(res.status===404) msg += "\n（多为「模型」ID 不存在或拼写错误，请核对模型输入框，例如 fal-ai/flux/dev）";
+        if(res.status===401 || res.status===403) msg += "\n（API Key 无效或无权限，请检查 Key）";
+        if(res.status===422) msg += "\n（参数不被该模型支持，可在「高级参数」里精简自定义 JSON 后重试）";
         throw new Error(msg);
       }
       const data = await res.json();
