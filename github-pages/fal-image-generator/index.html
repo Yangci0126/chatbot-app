@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1020" />
+<title>Fal.ai 图像生成器</title>
+<style>
+  :root {
+    --bg: #0f1020;
+    --bg-soft: #171831;
+    --panel: #1c1e3a;
+    --panel-2: #23254a;
+    --border: #2e3158;
+    --text: #e8e9f3;
+    --text-dim: #a3a6c4;
+    --accent: #7c6cff;
+    --accent-2: #00d4ff;
+    --accent-grad: linear-gradient(135deg, #7c6cff, #00d4ff);
+    --ok: #36d399;
+    --err: #ff6b81;
+    --warn: #ffcc66;
+    --radius: 14px;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  :root.light {
+    --bg: #f4f5fb;
+    --bg-soft: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #f0f1f8;
+    --border: #e1e3ef;
+    --text: #1c1e33;
+    --text-dim: #6b6e8a;
+    --accent: #6a5bff;
+    --accent-2: #0096d6;
+    --accent-grad: linear-gradient(135deg, #6a5bff, #0096d6);
+    --ok: #18a957;
+    --err: #e23a52;
+    --warn: #c98a00;
+    --shadow: 0 8px 30px rgba(40,40,80,.12);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background .25s, color .25s;
+  }
+  a { color: var(--accent-2); }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--accent-grad);
+    display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 16px;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: .2px; }
+  header .sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  header .spacer { flex: 1; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); cursor: pointer; font-size: 16px;
+    display: grid; place-items: center; transition: .15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+
+  main {
+    max-width: 1280px; margin: 0 auto; padding: 16px;
+    display: grid; grid-template-columns: 400px 1fr; gap: 16px; align-items: start;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; padding: 12px; }
+  }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  }
+  .settings { position: sticky; top: 70px; }
+  @media (max-width: 900px) { .settings { position: static; } }
+
+  .field { margin-bottom: 14px; }
+  .field > label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: .3px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; min-width: 0; }
+
+  input[type=text], input[type=number], input[type=password], textarea, select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 14px;
+    font-family: inherit; transition: .15s; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  textarea { resize: vertical; min-height: 84px; line-height: 1.5; }
+  select { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23999' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; }
+
+  .hint { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+
+  .btn {
+    border: none; border-radius: 11px; padding: 12px 14px; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: .15s; font-family: inherit; display: inline-flex;
+    align-items: center; justify-content: center; gap: 8px; user-select: none;
+  }
+  .btn-primary { background: var(--accent-grad); color: #fff; box-shadow: var(--shadow); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.3); }
+  .btn-ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn-sm { padding: 8px 10px; font-size: 12.5px; border-radius: 9px; }
+  .btn-block { width: 100%; }
+  .btn-generate { margin-top: 4px; }
+
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button {
+    flex: 1; min-width: 64px; padding: 9px 8px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text-dim); cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: .15s; font-family: inherit;
+  }
+  .seg button.active { background: var(--accent-grad); color: #fff; border-color: transparent; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim); }
+  .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+  .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin: 18px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+  details.collapsible { border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; background: var(--panel-2); margin-bottom: 14px; }
+  details.collapsible summary { cursor: pointer; padding: 12px 0; font-weight: 700; font-size: 13px; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+  details.collapsible summary::-webkit-details-marker { display: none; }
+  details.collapsible summary::after { content: "▸"; color: var(--text-dim); transition: .2s; }
+  details.collapsible[open] summary::after { transform: rotate(90deg); }
+  details.collapsible .body { padding: 0 0 12px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text-dim); cursor: pointer; transition: .15s; }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .gallery-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .gallery-head h2 { font-size: 16px; margin: 0; }
+  .gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+  }
+  @media (max-width: 520px) { .gallery { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+  .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .card .imgwrap { position: relative; aspect-ratio: 1/1; background: var(--bg-soft); cursor: zoom-in; overflow: hidden; }
+  .card .imgwrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: .2s; }
+  .card .imgwrap:hover img { transform: scale(1.04); }
+  .card .meta { padding: 8px 10px; font-size: 11px; color: var(--text-dim); }
+  .card .meta .p { color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
+  .card .acts { display: flex; gap: 6px; }
+  .card .acts .btn { flex: 1; padding: 7px 4px; font-size: 11.5px; border-radius: 8px; }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 60px 20px; border: 1.5px dashed var(--border); border-radius: 14px; }
+  .empty .big { font-size: 40px; margin-bottom: 10px; }
+
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  #toast-wrap { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; width: max-content; max-width: 92vw; }
+  .toast { padding: 11px 16px; border-radius: 11px; font-size: 13px; box-shadow: var(--shadow); border: 1px solid var(--border); background: var(--panel); color: var(--text); animation: pop .2s ease; max-width: 92vw; }
+  .toast.ok { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+  .toast.err { border-color: color-mix(in srgb, var(--err) 50%, transparent); }
+  .toast.warn { border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Lightbox */
+  #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 300; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #lightbox.show { display: flex; }
+  #lightbox img { max-width: 100%; max-height: 90vh; border-radius: 10px; box-shadow: var(--shadow); }
+  #lightbox .close { position: absolute; top: 16px; right: 18px; font-size: 28px; color: #fff; cursor: pointer; }
+
+  .warn-box { background: color-mix(in srgb, var(--warn) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--border)); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--text); margin-bottom: 14px; }
+  .warn-box b { color: var(--warn); }
+
+  .footer-note { text-align: center; color: var(--text-dim); font-size: 11px; padding: 20px; }
+  code.k { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">F</div>
+  <div>
+    <h1>Fal.ai 图像生成器</h1>
+    <div class="sub">中文提示词 · 多模型 · 移动桌面通吃</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="themeBtn" title="切换主题">🌗</button>
+</header>
+
+<main>
+  <!-- ============ 设置面板 ============ -->
+  <section class="panel settings">
+    <!-- API Key -->
+    <div class="field">
+      <label>fal.ai API Key</label>
+      <div class="row">
+        <input type="password" id="apiKey" placeholder="粘贴你的 fal.ai Key（如 key-xxxx）" autocomplete="off" />
+        <button class="btn btn-ghost btn-sm" id="showKey" style="flex:0 0 auto; padding:10px 12px;">👁</button>
+      </div>
+      <div class="hint">Key 仅保存在本机浏览器（localStorage），不会上传到任何第三方。建议用只读/受限 Key。</div>
+    </div>
+
+    <!-- 模型 -->
+    <div class="field">
+      <label>模型</label>
+      <input type="text" id="model" list="modelList" placeholder="选择或输入模型 ID" />
+      <datalist id="modelList">
+        <option value="fal-ai/flux/dev">FLUX.1 Dev（开源高质量）</option>
+        <option value="fal-ai/flux/schnell">FLUX.1 Schnell（极速）</option>
+        <option value="fal-ai/flux-pro/v1.1">FLUX 1.1 Pro</option>
+        <option value="fal-ai/flux-pro/v1.1-ultra">FLUX 1.1 Pro Ultra</option>
+        <option value="fal-ai/stable-diffusion-xl">Stable Diffusion XL</option>
+        <option value="fal-ai/stable-cascade">Stable Cascade</option>
+        <option value="fal-ai/ideogram/v2">Ideogram v2</option>
+        <option value="fal-ai/recraft-v3">Recraft v3</option>
+        <option value="fal-ai/bytedance/seedream/v3">Seedream v3</option>
+      </datalist>
+      <div class="hint">模型 ID 可到 <a href="https://fal.ai/models" target="_blank" rel="noopener">fal.ai/models</a> 复制。</div>
+    </div>
+
+    <!-- 提示词 -->
+    <div class="field">
+      <label>原始提示词（支持中文）</label>
+      <textarea id="promptZh" placeholder="例如：一只戴墨镜的橘猫，坐在霓虹城市屋顶，赛博朋克风格"></textarea>
+      <div class="chips" style="margin-top:8px;">
+        <span class="chip" data-p="一只戴墨镜的橘猫，坐在霓虹城市屋顶，赛博朋克风格">🐱 赛博猫</span>
+        <span class="chip" data-p="清晨阳光下的山间湖泊，薄雾，写实摄影，超高清">🏞 风景</span>
+        <span class="chip" data-p="未来女性机甲战士，全身装甲，电影感打光">🤖 机甲</span>
+        <span class="chip" data-p="水彩风格的小镇咖啡馆，温暖的午后光线">☕ 水彩</span>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:14px;">
+      <button class="btn btn-ghost btn-sm" id="btnTranslate">🌐 翻译为英文</button>
+      <button class="btn btn-ghost btn-sm" id="btnOptimize">✨ 优化提示词</button>
+    </div>
+
+    <div class="field">
+      <label>最终提示词（英文，用于生成）</label>
+      <textarea id="promptEn" placeholder="翻译/优化后的英文提示词，可手动微调"></textarea>
+      <div class="hint" id="promptStatus"></div>
+    </div>
+
+    <!-- 尺寸 -->
+    <div class="field">
+      <label>尺寸（清晰度 → 分辨率）</label>
+      <select id="sizePreset">
+        <option value="1024x1024x1:1">正方形 1:1 · 1024</option>
+        <option value="768x1024x3:4">竖图 3:4 · 768×1024</option>
+        <option value="720x1280x9:16">竖图 9:16 · 720×1280（手机壁纸）</option>
+        <option value="1024x768x4:3">横图 4:3 · 1024×768</option>
+        <option value="1280x720x16:9">横图 16:9 · 1280×720</option>
+        <option value="1536x1536x1:1">方形高清 1:1 · 1536</option>
+      </select>
+      <div class="row" style="margin-top:8px;">
+        <input type="number" id="width" placeholder="宽" min="64" max="2048" />
+        <input type="number" id="height" placeholder="高" min="64" max="2048" />
+      </div>
+    </div>
+
+    <!-- 质量 -->
+    <div class="field">
+      <label>质量 / 清晰度</label>
+      <div class="seg" id="qualitySeg">
+        <button data-q="28">标准</button>
+        <button data-q="35" class="active">高</button>
+        <button data-q="50">超高</button>
+      </div>
+      <div class="hint">越高越精细、越慢（影响推理步数，部分模型生效）。</div>
+    </div>
+
+    <!-- 风格 -->
+    <div class="field">
+      <label>风格（自动转为英文关键词融入提示词）</label>
+      <select id="style">
+        <option value="">无（原样）</option>
+        <option value="photorealistic">写实摄影</option>
+        <option value="anime">动漫</option>
+        <option value="digital">数字艺术</option>
+        <option value="oil">油画</option>
+        <option value="3d">3D 渲染</option>
+        <option value="watercolor">水彩</option>
+        <option value="pixel">像素艺术</option>
+        <option value="minimalist">极简</option>
+        <option value="cinematic">电影感</option>
+      </select>
+    </div>
+
+    <!-- 格式 / 数量 -->
+    <div class="row">
+      <div class="field" style="flex:1;">
+        <label>格式</label>
+        <select id="format">
+          <option value="png">PNG</option>
+          <option value="jpeg" selected>JPEG</option>
+          <option value="webp">WebP</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1;">
+        <label>数量</label>
+        <select id="numImages">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 种子 -->
+    <div class="field">
+      <label>随机种子（可选，留空随机）</label>
+      <input type="number" id="seed" placeholder="例如 12345" />
+    </div>
+
+    <details class="collapsible">
+      <summary>高级参数（自定义 JSON 覆盖）</summary>
+      <div class="body">
+        <textarea id="customParams" placeholder='可填写任意 fal.ai 请求参数，例如：{"enable_safety_checker":false,"strength":0.8}' style="min-height:70px;"></textarea>
+        <div class="hint">会与上方参数合并，此处字段优先级最高。</div>
+      </div>
+    </details>
+
+    <details class="collapsible">
+      <summary>翻译 / 优化 设置</summary>
+      <div class="body">
+        <div class="field">
+          <label>翻译服务</label>
+          <select id="transProvider">
+            <option value="mymemory">MyMemory（免费，无需 Key）</option>
+            <option value="custom">自定义（OpenAI 兼容接口，质量更好）</option>
+          </select>
+        </div>
+        <div id="customTrans" style="display:none;">
+          <div class="field">
+            <label>接口地址（Base URL）</label>
+            <input type="text" id="transBase" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="password" id="transKey" placeholder="sk-..." autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>模型名</label>
+            <input type="text" id="transModel" placeholder="gpt-4o-mini" />
+          </div>
+        </div>
+        <div class="hint">提示词优化 = 翻译为中文→英文 + 按所选风格/质量自动润色。</div>
+      </div>
+    </details>
+
+    <button class="btn btn-primary btn-block btn-generate" id="btnGenerate">🚀 生成图片</button>
+    <div class="hint" id="genStatus" style="text-align:center; margin-top:8px;"></div>
+  </section>
+
+  <!-- ============ 画廊 ============ -->
+  <section class="panel">
+    <div class="gallery-head">
+      <h2>生成结果</h2>
+      <span class="pill" id="countPill">0 张</span>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-ghost btn-sm" id="btnDownloadAll" style="display:none;">⬇ 下载全部</button>
+      <button class="btn btn-ghost btn-sm" id="btnClear">🗑 清空</button>
+    </div>
+    <div id="gallery" class="gallery">
+      <div class="empty" style="grid-column:1/-1;">
+        <div class="big">🖼️</div>
+        <div>还没有图片。填好 Key 和提示词，点「生成图片」试试～</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="footer-note">
+  纯前端应用 · 图片由 fal.ai 生成 · 本工具不存储你的任何内容于服务器
+</div>
+
+<div id="toast-wrap"></div>
+<div id="lightbox"><span class="close" id="lbClose">×</span><img id="lbImg" src="" alt="预览" /></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 存储 ----------
+  const NS = "falimg_";
+  const store = {
+    get(k, d){ try { const v = localStorage.getItem(NS+k); return v===null?d:JSON.parse(v); } catch(e){ return d; } },
+    set(k, v){ try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e){} }
+  };
+
+  // ---------- 风格关键词 ----------
+  const STYLE_KW = {
+    photorealistic: "photorealistic, highly detailed, sharp focus, realistic lighting, professional photography",
+    anime: "anime style, vibrant colors, clean lines, cel shading, 2d illustration",
+    digital: "digital art, concept art, intricate details, trending on artstation",
+    oil: "oil painting, visible brush strokes, classical art, rich texture",
+    "3d": "3D render, octane render, blender, unreal engine, volumetric lighting",
+    watercolor: "watercolor painting, soft colors, paper texture, gentle washes",
+    pixel: "pixel art, 8-bit, retro game sprite, limited palette",
+    minimalist: "minimalist, clean composition, flat design, negative space",
+    cinematic: "cinematic lighting, dramatic atmosphere, film still, anamorphic lens, teal and orange"
+  };
+
+  // ---------- 工具 ----------
+  const $ = (id)=>document.getElementById(id);
+  function toast(msg, type){
+    const t = document.createElement("div");
+    t.className = "toast" + (type?(" "+type):"");
+    t.textContent = msg;
+    $("toast-wrap").appendChild(t);
+    setTimeout(()=>{ t.style.opacity="0"; t.style.transition="opacity .3s"; setTimeout(()=>t.remove(),300); }, 3200);
+  }
+  function hasCJK(s){ return /[一-鿿]/.test(s||""); }
+
+  // ---------- 主题 ----------
+  function applyTheme(t){
+    if(t==="light") document.documentElement.classList.add("light");
+    else document.documentElement.classList.remove("light");
+  }
+  let theme = store.get("theme","dark");
+  applyTheme(theme);
+  $("themeBtn").onclick = ()=>{
+    theme = (theme==="dark")?"light":"dark";
+    applyTheme(theme); store.set("theme", theme);
+  };
+
+  // ---------- 恢复设置 ----------
+  function restore(){
+    $("apiKey").value = store.get("apiKey","")||"";
+    $("model").value = store.get("model","fal-ai/flux/dev");
+    $("promptZh").value = store.get("promptZh","");
+    $("promptEn").value = store.get("promptEn","");
+    const size = store.get("size","1024x1024x1:1");
+    $("sizePreset").value = size;
+    const [w,h] = size.split("x");
+    $("width").value = w; $("height").value = h;
+    setQuality(store.get("quality",35));
+    $("style").value = store.get("style","");
+    $("format").value = store.get("format","jpeg");
+    $("numImages").value = String(store.get("numImages",1));
+    $("seed").value = store.get("seed","");
+    $("customParams").value = store.get("customParams","");
+    const tp = store.get("transProvider","mymemory");
+    $("transProvider").value = tp;
+    toggleCustomTrans(tp);
+    const tc = store.get("transConfig",{});
+    $("transBase").value = tc.base||""; $("transKey").value = tc.key||""; $("transModel").value = tc.model||"";
+  }
+
+  function saveSettings(){
+    const size = $("sizePreset").value;
+    store.set("apiKey", $("apiKey").value.trim());
+    store.set("model", $("model").value.trim());
+    store.set("promptZh", $("promptZh").value);
+    store.set("promptEn", $("promptEn").value);
+    store.set("size", size);
+    store.set("quality", Number($("qualitySeg").dataset.q||35));
+    store.set("style", $("style").value);
+    store.set("format", $("format").value);
+    store.set("numImages", Number($("numImages").value));
+    store.set("seed", $("seed").value.trim());
+    store.set("customParams", $("customParams").value.trim());
+    store.set("transProvider", $("transProvider").value);
+    store.set("transConfig", { base:$("transBase").value.trim(), key:$("transKey").value.trim(), model:$("transModel").value.trim() });
+  }
+
+  // ---------- 质量分段 ----------
+  function setQuality(q){
+    $("qualitySeg").dataset.q = q;
+    [...$("qualitySeg").children].forEach(b=> b.classList.toggle("active", Number(b.dataset.q)===Number(q)));
+  }
+  [...$("qualitySeg").children].forEach(b=> b.onclick = ()=>{ setQuality(b.dataset.q); saveSettings(); });
+
+  // ---------- 尺寸预设联动 ----------
+  $("sizePreset").onchange = ()=>{
+    const [w,h] = $("sizePreset").value.split("x");
+    $("width").value = w; $("height").value = h; saveSettings();
+  };
+  ["width","height"].forEach(id=> $(id).addEventListener("input", ()=>{
+    // 用户在自定义宽高时，保持 sizePreset 仅作展示，不参与发送
+    saveSettings();
+  }));
+
+  // 通用输入保存
+  ["model","promptZh","promptEn","style","format","numImages","seed","customParams","apiKey"].forEach(id=>{
+    $(id).addEventListener("input", saveSettings);
+    $(id).addEventListener("change", saveSettings);
+  });
+  $("transProvider").onchange = ()=>{ toggleCustomTrans($("transProvider").value); saveSettings(); };
+  ["transBase","transKey","transModel"].forEach(id=> $(id).addEventListener("input", saveSettings));
+  function toggleCustomTrans(v){ $("customTrans").style.display = (v==="custom")?"block":"none"; }
+
+  // ---------- 显示/隐藏 Key ----------
+  $("showKey").onclick = ()=>{
+    const i = $("apiKey"); i.type = (i.type==="password")?"text":"password";
+  };
+
+  // ---------- 示例 chips ----------
+  document.querySelectorAll(".chip").forEach(c=> c.onclick = ()=>{
+    $("promptZh").value = c.dataset.p; saveSettings();
+    $("promptZh").scrollIntoView({behavior:"smooth", block:"center"});
+  });
+
+  // ---------- 翻译 ----------
+  async function translateMyMemory(text){
+    const url = "https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair=zh|en";
+    const r = await fetch(url);
+    const d = await r.json();
+    if(d && d.responseData && d.responseData.translatedText) return d.responseData.translatedText;
+    throw new Error(d && (d.responseDetails||d.responseStatus) || "翻译失败");
+  }
+  async function translateCustom(text){
+    const cfg = store.get("transConfig",{});
+    if(!cfg.base || !cfg.key) throw new Error("请先填写自定义翻译接口的地址和 Key");
+    const r = await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions", {
+      method:"POST",
+      headers:{ "Authorization":"Bearer "+cfg.key, "Content-Type":"application/json" },
+      body: JSON.stringify({
+        model: cfg.model || "gpt-4o-mini",
+        temperature: 0.6,
+        messages:[
+          { role:"system", content:"You are an expert at writing English prompts for AI image generators (FLUX/SDXL). Translate the user's Chinese description into a vivid, detailed English prompt. If a style is implied, reflect it. Reply with ONLY the English prompt, no quotes, no extra text." },
+          { role:"user", content: text }
+        ]
+      })
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message||"翻译接口错误");
+    return d.choices[0].message.content.trim();
+  }
+  async function translate(text){
+    const provider = $("transProvider").value;
+    return provider==="custom" ? translateCustom(text) : translateMyMemory(text);
+  }
+
+  // 润色：加风格关键词 + 质量提升词
+  function enhance(enText, style){
+    let out = enText;
+    const kw = STYLE_KW[style];
+    const boost = "highly detailed, sharp focus, professional quality, masterpiece";
+    const parts = [out];
+    if(kw) parts.push(kw);
+    parts.push(boost);
+    return parts.filter(Boolean).join(", ");
+  }
+
+  $("btnTranslate").onclick = async ()=>{
+    const src = $("promptZh").value.trim();
+    if(!src){ toast("请先输入中文提示词","warn"); return; }
+    try {
+      toast("正在翻译…");
+      const en = await translate(src);
+      $("promptEn").value = en; saveSettings();
+      $("promptStatus").innerHTML = '<span class="pill ok">已翻译为英文</span>';
+    } catch(e){ toast("翻译失败："+e.message,"err"); }
+  };
+
+  $("btnOptimize").onclick = async ()=>{
+    let src = $("promptZh").value.trim();
+    if(!src && !$("promptEn").value.trim()){ toast("请先输入提示词","warn"); return; }
+    try {
+      toast("正在优化…");
+      let en;
+      if(src){ en = await translate(src); }
+      else { en = $("promptEn").value.trim(); }
+      en = enhance(en, $("style").value);
+      $("promptEn").value = en; saveSettings();
+      $("promptStatus").innerHTML = '<span class="pill ok">已优化（含风格/质量关键词）</span>';
+    } catch(e){ toast("优化失败："+e.message,"err"); }
+  };
+
+  // ---------- 构建请求体 ----------
+  function isPro(id){ return /pro/.test(id); }
+  const ALLOWED_ASPECT = ["1:1","16:9","9:16","4:3","3:4","3:2","2:3","21:9","9:21"];
+  function nearestAspect(w,h){
+    const r = w/h; let best="1:1", bd=1e9;
+    for(const a of ALLOWED_ASPECT){ const [aw,ah]=a.split(":").map(Number); const d=Math.abs(aw/ah-r); if(d<bd){bd=d;best=a;} }
+    return best;
+  }
+  function buildBody(modelId, prompt){
+    const b = { prompt };
+    let w = parseInt($("width").value,10) || 1024;
+    let h = parseInt($("height").value,10) || 1024;
+    if(isPro(modelId)){
+      b.aspect_ratio = nearestAspect(w,h);
+      // FLUX Pro 系列由服务决定格式，不传 output_format，必要时可用「自定义 JSON」覆盖
+    } else {
+      b.image_size = { width:w, height:h };
+      b.output_format = $("format").value;
+    }
+    const steps = Number($("qualitySeg").dataset.q||35);
+    if(/stable-diffusion-xl|stable-cascade/.test(modelId)){
+      b.num_inference_steps = steps;
+      b.guidance_scale = 3.5;
+    }
+    const n = parseInt($("numImages").value,10)||1;
+    if(n>1) b.num_images = n;
+    const seed = $("seed").value.trim();
+    if(seed!=="" && !isNaN(Number(seed))) b.seed = Number(seed);
+    const ov = $("customParams").value.trim();
+    if(ov){
+      try { Object.assign(b, JSON.parse(ov)); }
+      catch(e){ toast("自定义参数 JSON 解析失败，已忽略","warn"); }
+    }
+    return b;
+  }
+
+  // ---------- 生成 ----------
+  let generating = false;
+  async function generate(){
+    if(generating) return;
+    const key = $("apiKey").value.trim();
+    if(!key){ toast("请先填写 fal.ai API Key","err"); $("apiKey").focus(); return; }
+    let modelId = $("model").value.trim();
+    if(!modelId){ toast("请填写模型 ID","err"); return; }
+
+    // 确定最终提示词
+    let finalPrompt = $("promptEn").value.trim();
+    if(!finalPrompt){
+      const zh = $("promptZh").value.trim();
+      if(!zh){ toast("请输入提示词","err"); return; }
+      if(hasCJK(zh)){
+        try { toast("检测到中文，正在自动翻译…"); finalPrompt = await translate(zh); $("promptEn").value = finalPrompt; $("promptStatus").innerHTML='<span class="pill ok">已自动翻译</span>'; }
+        catch(e){ toast("自动翻译失败，请手动翻译："+e.message,"err"); return; }
+      } else { finalPrompt = zh; }
+    }
+
+    const body = buildBody(modelId, finalPrompt);
+    generating = true;
+    const btn = $("btnGenerate");
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 生成中…';
+    $("genStatus").textContent = "正在调用 fal.ai，请稍候…";
+
+    try {
+      const res = await fetch("https://fal.run/"+modelId, {
+        method:"POST",
+        headers:{ "Authorization":"Key "+key, "Content-Type":"application/json" },
+        body: JSON.stringify(body)
+      });
+      if(!res.ok){
+        let msg = res.status+" "+res.statusText;
+        try { const e = await res.json(); msg = e.message || e.detail || (e.errors&&e.errors[0]&&e.errors[0].message) || JSON.stringify(e); } catch(_){}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      const imgs = (data.images||[]).map(x=> typeof x==="string"?x:x.url).filter(Boolean);
+      if(!imgs.length) throw new Error("返回中没有图片（可能模型不支持该参数组合）");
+      addResults(imgs, finalPrompt, modelId, data.seed);
+      $("genStatus").textContent = "完成，生成 "+imgs.length+" 张 ✅";
+      toast("生成成功 🎉","ok");
+    } catch(e){
+      $("genStatus").textContent = "";
+      toast("生成失败："+e.message,"err");
+    } finally {
+      generating = false;
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  }
+  $("btnGenerate").onclick = generate;
+
+  // ---------- 画廊 ----------
+  let results = store.get("history",[]);
+  function renderAll(){
+    const g = $("gallery");
+    if(!results.length){
+      g.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="big">🖼️</div><div>还没有图片。填好 Key 和提示词，点「生成图片」试试～</div></div>';
+      $("countPill").textContent = "0 张";
+      $("btnDownloadAll").style.display = "none";
+      return;
+    }
+    g.innerHTML = "";
+    results.forEach((it, idx)=>{
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const wrap = document.createElement("div");
+      wrap.className = "imgwrap";
+      wrap.dataset.idx = idx;
+      const img = document.createElement("img");
+      img.src = it.url;
+      img.alt = "result";
+      img.loading = "lazy";
+      img.onerror = ()=>{
+        const d = document.createElement("div");
+        d.style.cssText = "display:grid;place-items:center;height:100%;color:var(--text-dim);font-size:12px;padding:8px;text-align:center;";
+        d.textContent = "图片链接已失效";
+        wrap.innerHTML = "";
+        wrap.appendChild(d);
+      };
+      wrap.appendChild(img);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const p = document.createElement("div");
+      p.className = "p";
+      p.textContent = it.prompt || "";
+      const acts = document.createElement("div");
+      acts.className = "acts";
+      const dl = document.createElement("button");
+      dl.className = "btn btn-ghost"; dl.dataset.act = "dl"; dl.dataset.idx = idx; dl.textContent = "⬇ 保存";
+      const cp = document.createElement("button");
+      cp.className = "btn btn-ghost"; cp.dataset.act = "copy"; cp.dataset.idx = idx; cp.textContent = "📋";
+      acts.appendChild(dl); acts.appendChild(cp);
+      meta.appendChild(p); meta.appendChild(acts);
+
+      card.appendChild(wrap); card.appendChild(meta);
+      g.appendChild(card);
+    });
+    $("countPill").textContent = results.length + " 张";
+    $("btnDownloadAll").style.display = results.length>1 ? "inline-flex" : "none";
+  }
+  function addResults(urls, prompt, model, seed){
+    urls.forEach(u=> results.unshift({ url:u, prompt, model, seed, time:Date.now() }));
+    if(results.length>40) results = results.slice(0,40);
+    store.set("history", results);
+    renderAll();
+  }
+  $("gallery").addEventListener("click", (e)=>{
+    const wrap = e.target.closest(".imgwrap");
+    const actBtn = e.target.closest("[data-act]");
+    if(actBtn){
+      const idx = Number(actBtn.dataset.idx);
+      if(actBtn.dataset.act==="dl") downloadImage(results[idx]);
+      else if(actBtn.dataset.act==="copy"){ navigator.clipboard.writeText(results[idx].prompt||"").then(()=>toast("提示词已复制","ok")); }
+      return;
+    }
+    if(wrap){
+      const it = results[Number(wrap.dataset.idx)];
+      if(it){ $("lbImg").src = it.url; $("lightbox").classList.add("show"); }
+    }
+  });
+  $("lbClose").onclick = ()=> $("lightbox").classList.remove("show");
+  $("lightbox").onclick = (e)=>{ if(e.target===$("lightbox")) $("lightbox").classList.remove("show"); };
+
+  $("btnClear").onclick = ()=>{ results=[]; store.set("history",[]); renderAll(); };
+  $("btnDownloadAll").onclick = async ()=>{
+    for(let i=0;i<results.length;i++){
+      await downloadImage(results[i], true);
+      await new Promise(r=>setTimeout(r, 500));
+    }
+    toast("已全部触发下载","ok");
+  };
+
+  // ---------- 下载（移动/桌面通用）----------
+  function fileBase(it, i){
+    const ts = new Date();
+    const pad = n=>String(n).padStart(2,"0");
+    const stamp = `${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}`;
+    const ext = (it.url.split("?")[0].split(".").pop()||"png").split(/[?#]/)[0].slice(0,4) || "png";
+    return `fal_${stamp}_${i}.${ext}`;
+  }
+  async function downloadImage(it, silent){
+    if(!it) return;
+    const name = fileBase(it, results.indexOf(it)+1);
+    try {
+      const r = await fetch(it.url, { mode:"cors" });
+      if(!r.ok) throw new Error("fetch "+r.status);
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      if(!silent) toast("已保存到本机：" + name,"ok");
+    } catch(e){
+      // 跨域/失败兜底：新标签页打开（移动端可长按保存）
+      window.open(it.url, "_blank");
+      if(!silent) toast("已在新标签打开，可长按/右键保存","warn");
+    }
+  }
+
+  // ---------- 初始化 ----------
+  restore();
+  renderAll();
+  if(!$("apiKey").value) toast("提示：在左上角填写 fal.ai API Key 后即可生成","warn");
+})();
+</script>
+</body>
+</html>
