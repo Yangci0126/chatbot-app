@@ -191,10 +191,10 @@
 </head>
 <body>
 <header>
-  <div class="logo">F</div>
+  <div class="logo">AI</div>
   <div>
-    <h1>Fal.ai 图像生成器</h1>
-    <div class="sub">中文提示词 · 多模型 · 移动桌面通吃</div>
+    <h1>AI 图像生成器</h1>
+    <div class="sub">中文提示词 · fal.ai / 火山引擎方舟 · 移动桌面通吃</div>
   </div>
   <div class="spacer"></div>
   <button class="icon-btn" id="themeBtn" title="切换主题">🌗</button>
@@ -203,9 +203,19 @@
 <main>
   <!-- ============ 设置面板 ============ -->
   <section class="panel settings">
+    <!-- 服务提供商 -->
+    <div class="field">
+      <label>服务提供商</label>
+      <div class="seg" id="providerSeg">
+        <button data-p="fal" class="active">fal.ai</button>
+        <button data-p="volc">火山引擎方舟</button>
+      </div>
+      <div class="hint" id="providerHint"></div>
+    </div>
+
     <!-- API Key -->
     <div class="field">
-      <label>fal.ai API Key</label>
+      <label id="apiKeyLabel">fal.ai API Key</label>
       <div class="row">
         <input type="password" id="apiKey" placeholder="粘贴你的 fal.ai Key（如 key-xxxx）" autocomplete="off" />
         <button class="btn btn-ghost btn-sm" id="showKey" style="flex:0 0 auto; padding:10px 12px;">👁</button>
@@ -228,7 +238,13 @@
         <option value="fal-ai/recraft-v3">Recraft v3</option>
         <option value="fal-ai/bytedance/seedream/v3/text-to-image">Seedream v3（字节，支持中文）</option>
       </datalist>
-      <div class="hint">模型 ID 可到 <a href="https://fal.ai/models" target="_blank" rel="noopener">fal.ai/models</a> 复制。</div>
+      <datalist id="modelListVolc">
+        <option value="doubao-seedream-5-0-pro-260628">Seedream 5.0 Pro（豆包，4K·中文强）</option>
+        <option value="doubao-seedream-5-0-lite">Seedream 5.0 Lite</option>
+        <option value="doubao-seedream-4-5">Seedream 4.5</option>
+        <option value="doubao-seedream-4-0">Seedream 4.0</option>
+      </datalist>
+      <div class="hint" id="modelHint">模型 ID 可到 <a href="https://fal.ai/models" target="_blank" rel="noopener">fal.ai/models</a> 复制。</div>
     </div>
 
     <!-- 提示词 -->
@@ -256,18 +272,28 @@
 
     <!-- 尺寸 -->
     <div class="field">
-      <label>尺寸（清晰度 → 分辨率）</label>
-      <select id="sizePreset">
-        <option value="1024x1024x1:1">正方形 1:1 · 1024</option>
-        <option value="768x1024x3:4">竖图 3:4 · 768×1024</option>
-        <option value="720x1280x9:16">竖图 9:16 · 720×1280（手机壁纸）</option>
-        <option value="1024x768x4:3">横图 4:3 · 1024×768</option>
-        <option value="1280x720x16:9">横图 16:9 · 1280×720</option>
-        <option value="1536x1536x1:1">方形高清 1:1 · 1536</option>
-      </select>
-      <div class="row" style="margin-top:8px;">
-        <input type="number" id="width" placeholder="宽" min="64" max="2048" />
-        <input type="number" id="height" placeholder="高" min="64" max="2048" />
+      <label id="sizeLabel">尺寸（清晰度 → 分辨率）</label>
+      <div id="falSizeWrap">
+        <select id="sizePreset">
+          <option value="1024x1024x1:1">正方形 1:1 · 1024</option>
+          <option value="768x1024x3:4">竖图 3:4 · 768×1024</option>
+          <option value="720x1280x9:16">竖图 9:16 · 720×1280（手机壁纸）</option>
+          <option value="1024x768x4:3">横图 4:3 · 1024×768</option>
+          <option value="1280x720x16:9">横图 16:9 · 1280×720</option>
+          <option value="1536x1536x1:1">方形高清 1:1 · 1536</option>
+        </select>
+        <div class="row" style="margin-top:8px;">
+          <input type="number" id="width" placeholder="宽" min="64" max="2048" />
+          <input type="number" id="height" placeholder="高" min="64" max="2048" />
+        </div>
+      </div>
+      <div id="volcSizeWrap" style="display:none;">
+        <select id="volcSize">
+          <option value="1K">1K · 约 1024px</option>
+          <option value="2K" selected>2K · 约 1328px（推荐）</option>
+          <option value="4K">4K · 约 2048px</option>
+        </select>
+        <div class="hint">火山引擎方舟用 1K/2K/4K 档位，横竖由提示词决定。</div>
       </div>
     </div>
 
@@ -382,7 +408,7 @@
 </main>
 
 <div class="footer-note">
-  纯前端应用 · 图片由 fal.ai 生成 · 本工具不存储你的任何内容于服务器
+  纯前端应用 · 图片由所选服务生成 · 本工具不存储你的任何内容于服务器
 </div>
 
 <div id="toast-wrap"></div>
@@ -398,6 +424,7 @@
     get(k, d){ try { const v = localStorage.getItem(NS+k); return v===null?d:JSON.parse(v); } catch(e){ return d; } },
     set(k, v){ try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e){} }
   };
+  let provider = store.get("provider","fal");
 
   // ---------- 风格关键词 ----------
   const STYLE_KW = {
@@ -437,14 +464,9 @@
 
   // ---------- 恢复设置 ----------
   function restore(){
-    $("apiKey").value = store.get("apiKey","")||"";
-    $("model").value = store.get("model","fal-ai/flux/dev");
+    provider = store.get("provider","fal");
     $("promptZh").value = store.get("promptZh","");
     $("promptEn").value = store.get("promptEn","");
-    const size = store.get("size","1024x1024x1:1");
-    $("sizePreset").value = size;
-    const [w,h] = size.split("x");
-    $("width").value = w; $("height").value = h;
     setQuality(store.get("quality",35));
     $("style").value = store.get("style","");
     $("format").value = store.get("format","jpeg");
@@ -456,15 +478,22 @@
     toggleCustomTrans(tp);
     const tc = store.get("transConfig",{});
     $("transBase").value = tc.base||""; $("transKey").value = tc.key||""; $("transModel").value = tc.model||"";
+    applyProviderUI();
   }
 
   function saveSettings(){
-    const size = $("sizePreset").value;
-    store.set("apiKey", $("apiKey").value.trim());
-    store.set("model", $("model").value.trim());
+    store.set("provider", provider);
+    if(provider==="fal"){
+      store.set("falKey", $("apiKey").value.trim());
+      store.set("falModel", $("model").value.trim());
+      store.set("falSize", $("sizePreset").value);
+    } else {
+      store.set("volcKey", $("apiKey").value.trim());
+      store.set("volcModel", $("model").value.trim());
+      store.set("volcSize", $("volcSize").value);
+    }
     store.set("promptZh", $("promptZh").value);
     store.set("promptEn", $("promptEn").value);
-    store.set("size", size);
     store.set("quality", Number($("qualitySeg").dataset.q||35));
     store.set("style", $("style").value);
     store.set("format", $("format").value);
@@ -474,6 +503,37 @@
     store.set("transProvider", $("transProvider").value);
     store.set("transConfig", { base:$("transBase").value.trim(), key:$("transKey").value.trim(), model:$("transModel").value.trim() });
   }
+
+  // ---------- 服务提供商切换 UI ----------
+  function applyProviderUI(){
+    const isFal = provider==="fal";
+    [...$("providerSeg").children].forEach(b=> b.classList.toggle("active", b.dataset.p===provider));
+    $("falSizeWrap").style.display = isFal ? "" : "none";
+    $("volcSizeWrap").style.display = isFal ? "none" : "";
+    $("model").setAttribute("list", isFal ? "modelList" : "modelListVolc");
+    $("apiKey").value = isFal ? (store.get("falKey","")||store.get("apiKey","")||"") : (store.get("volcKey","")||"");
+    $("apiKeyLabel").textContent = isFal ? "fal.ai API Key" : "火山引擎方舟 API Key";
+    $("apiKey").placeholder = isFal ? "粘贴你的 fal.ai Key（如 key-xxxx）" : "粘贴火山引擎方舟 Key（ark 开头）";
+    $("model").value = isFal ? (store.get("falModel","fal-ai/flux/dev")) : (store.get("volcModel","doubao-seedream-5-0-pro-260628"));
+    $("volcSize").value = store.get("volcSize","2K");
+    if(isFal){
+      const size = store.get("falSize","1024x1024x1:1");
+      $("sizePreset").value = size;
+      const [w,h] = size.split("x"); $("width").value = w; $("height").value = h;
+    }
+    $("format").closest(".field").style.display = isFal ? "" : "none";
+    $("seed").closest(".field").style.display = isFal ? "" : "none";
+    $("providerHint").innerHTML = isFal
+      ? "默认走 fal.ai；要用火山引擎方舟的 Seedream，请切到右侧。"
+      : "已切到火山引擎方舟（豆包 Seedream）。「数量」会循环多次调用；格式/种子方舟暂不支持，由提示词控制。";
+    $("modelHint").innerHTML = isFal
+      ? '模型 ID 可到 <a href="https://fal.ai/models" target="_blank" rel="noopener">fal.ai/models</a> 复制。'
+      : '模型 ID 见 <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener">火山引擎方舟控制台</a>（如 doubao-seedream-5-0-pro-260628）。';
+  }
+  [...$("providerSeg").children].forEach(b=> b.onclick = ()=>{
+    provider = b.dataset.p; applyProviderUI(); saveSettings();
+  });
+  $("volcSize").addEventListener("change", saveSettings);
 
   // ---------- 质量分段 ----------
   function setQuality(q){
@@ -588,7 +648,18 @@
     for(const a of ALLOWED_ASPECT){ const [aw,ah]=a.split(":").map(Number); const d=Math.abs(aw/ah-r); if(d<bd){bd=d;best=a;} }
     return best;
   }
+  function buildVolcBody(modelId, prompt){
+    const b = { model: modelId, prompt, response_format: "url", watermark: false };
+    b.size = $("volcSize").value || "2K";
+    const ov = $("customParams").value.trim();
+    if(ov){
+      try { Object.assign(b, JSON.parse(ov)); }
+      catch(e){ toast("自定义参数 JSON 解析失败，已忽略","warn"); }
+    }
+    return b;
+  }
   function buildBody(modelId, prompt){
+    if(provider==="volc") return buildVolcBody(modelId, prompt);
     const b = { prompt };
     let w = parseInt($("width").value,10) || 1024;
     let h = parseInt($("height").value,10) || 1024;
@@ -620,10 +691,60 @@
 
   // ---------- 生成 ----------
   let generating = false;
+  const VOLC_URL = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
+
+  async function callFal(key, modelId, body){
+    const res = await fetch("https://fal.run/"+modelId, {
+      method:"POST",
+      headers:{ "Authorization":"Key "+key, "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok){
+      let msg = res.status+" "+res.statusText;
+      try { const e = await res.json(); msg = e.message || e.detail || (e.errors&&e.errors[0]&&e.errors[0].message) || JSON.stringify(e); } catch(_){}
+      if(res.status===404) msg += "\n（多为「模型」ID 不存在或拼写错误，请核对模型输入框，例如 fal-ai/flux/dev）";
+      if(res.status===401 || res.status===403) msg += "\n（API Key 无效或无权限，请检查 Key）";
+      if(res.status===422) msg += "\n（参数不被该模型支持，可在「高级参数」里精简自定义 JSON 后重试）";
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const imgs = [];
+    if(Array.isArray(data.images)) data.images.forEach(x=> imgs.push(typeof x==="string"?x:(x&&(x.url||x.image_url))));
+    if(data.image) imgs.push(typeof data.image==="string"?data.image:(data.image.url||data.image.image_url));
+    if(Array.isArray(data.data)) data.data.forEach(x=> imgs.push(typeof x==="string"?x:(x&&(x.url||x.image_url))));
+    return imgs.filter(Boolean);
+  }
+
+  async function callVolc(key, modelId, body){
+    const res = await fetch(VOLC_URL, {
+      method:"POST",
+      headers:{ "Authorization":"Bearer "+key, "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok){
+      let msg = res.status+" "+res.statusText;
+      try { const e = await res.json(); msg = e.error || e.message || e.msg || JSON.stringify(e); } catch(_){}
+      if(res.status===401 || res.status===403) msg += "\n（API Key 无效或无权限，请检查火山引擎方舟 Key）";
+      if(res.status===404) msg += "\n（模型 ID 不存在，请核对火山引擎方舟模型名，如 doubao-seedream-5-0-pro-260628）";
+      if(res.status===422) msg += "\n（参数不被该模型支持，可在高级参数精简后重试）";
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const arr = (data.data||[]);
+    const imgs = [];
+    arr.forEach(x=>{
+      if(!x) return;
+      if(x.url) imgs.push(x.url);
+      else if(x.b64_json) imgs.push("data:image/png;base64,"+x.b64_json);
+    });
+    if(!imgs.length) throw new Error("返回中没有图片（可能参数组合不被支持）");
+    return imgs;
+  }
+
   async function generate(){
     if(generating) return;
     const key = $("apiKey").value.trim();
-    if(!key){ toast("请先填写 fal.ai API Key","err"); $("apiKey").focus(); return; }
+    if(!key){ toast("请先填写对应服务的 API Key","err"); $("apiKey").focus(); return; }
     let modelId = $("model").value.trim();
     if(!modelId){ toast("请填写模型 ID","err"); return; }
 
@@ -644,26 +765,21 @@
     const orig = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> 生成中…';
-    $("genStatus").textContent = "正在调用 fal.ai，请稍候…";
+    $("genStatus").textContent = (provider==="fal" ? "正在调用 fal.ai" : "正在调用火山引擎方舟") + "，请稍候…";
 
     try {
-      const res = await fetch("https://fal.run/"+modelId, {
-        method:"POST",
-        headers:{ "Authorization":"Key "+key, "Content-Type":"application/json" },
-        body: JSON.stringify(body)
-      });
-      if(!res.ok){
-        let msg = res.status+" "+res.statusText;
-        try { const e = await res.json(); msg = e.message || e.detail || (e.errors&&e.errors[0]&&e.errors[0].message) || JSON.stringify(e); } catch(_){}
-        if(res.status===404) msg += "\n（多为「模型」ID 不存在或拼写错误，请核对模型输入框，例如 fal-ai/flux/dev）";
-        if(res.status===401 || res.status===403) msg += "\n（API Key 无效或无权限，请检查 Key）";
-        if(res.status===422) msg += "\n（参数不被该模型支持，可在「高级参数」里精简自定义 JSON 后重试）";
-        throw new Error(msg);
+      let imgs = [];
+      if(provider==="volc"){
+        const n = parseInt($("numImages").value,10)||1;
+        for(let i=0;i<n;i++){
+          const r = await callVolc(key, modelId, body);
+          imgs = imgs.concat(r);
+        }
+      } else {
+        imgs = imgs.concat(await callFal(key, modelId, body));
       }
-      const data = await res.json();
-      const imgs = (data.images||[]).map(x=> typeof x==="string"?x:x.url).filter(Boolean);
-      if(!imgs.length) throw new Error("返回中没有图片（可能模型不支持该参数组合）");
-      addResults(imgs, finalPrompt, modelId, data.seed);
+      if(!imgs.length) throw new Error("返回中没有图片（可能参数组合不被支持）");
+      addResults(imgs, finalPrompt, modelId, null);
       $("genStatus").textContent = "完成，生成 "+imgs.length+" 张 ✅";
       toast("生成成功 🎉","ok");
     } catch(e){
@@ -791,7 +907,7 @@
   // ---------- 初始化 ----------
   restore();
   renderAll();
-  if(!$("apiKey").value) toast("提示：在左上角填写 fal.ai API Key 后即可生成","warn");
+  if(!$("apiKey").value) toast("提示：先选「服务提供商」，再填写对应的 API Key 即可生成","warn");
 })();
 </script>
 </body>
