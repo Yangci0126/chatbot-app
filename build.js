@@ -94,7 +94,17 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 const appJSX = `const {useState,useEffect,useRef,useCallback} = React;
 const SURL='https://tayaketmnrlzfrsfsqce.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRheWFrZXRtbnJsemZyc2ZzcWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODczMTMsImV4cCI6MjEwMDQ2MzMxM30.tFVRpbS4-FmJ4jaJ8AWXMVCjxBJlBZJNj0ukXraklXU';
-const sup = window.supabase.createClient(SURL,SKEY);
+// 给所有 Supabase 请求加超时：网络挂起时快速失败并交给重试，避免一直等到浏览器默认超时（1~2 分钟）
+const fetchWithTimeout = (url, options) => {
+  const opt = options || {};
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => { try { ctrl.abort(); } catch(e) {} }, 15000);
+  return fetch(url, Object.assign({}, opt, { signal: ctrl.signal }))
+    .finally(() => clearTimeout(timer));
+};
+const sup = window.supabase.createClient(SURL, SKEY, {
+  global: { fetch: fetchWithTimeout }
+});
 
 const AVATARS = ['🤖','👩‍🚀','🦊','🐱','🐶','🐼','🦄','🐉','🧙‍♂️','🧛','🧝','👻','😺','🦸','🧑‍🎤'];
 const COLORS = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
@@ -105,23 +115,28 @@ const errMsg = (e, fb) => {
   let m = '';
   if(typeof e==='string' && e.length>0 && e!=='{}') m = e;
   else if(e.message && e.message.length>1 && e.message!=='{}') m = e.message;
+  if((e && e.name === 'AbortError') || /aborted|abort/i.test(m)) {
+    return '请求超时（15 秒无响应），网络可能不稳定，请重试';
+  }
   if(/failed to fetch|networkerror|load failed|network request failed|fetch failed|err_connection|err_name_not_resolved/i.test(m)) {
     return '无法连接服务器，请检查网络或后端服务状态（Supabase 项目可能被暂停）';
   }
   return m || fb || '请求失败';
 };
 
-// 取当前用户 ID：优先读本地 session（瞬时返回），避免每次都发 getUser 网络请求
+// 取当前用户 ID：优先读本地 session（瞬时返回），并缓存结果避免重复调用与锁竞争
+let _cachedUid = null;
 async function getUid() {
+  if(_cachedUid) return _cachedUid;
   try {
     const s = await sup.auth.getSession();
     const u = s && s.data && s.data.session && s.data.session.user;
-    if(u && u.id) return u.id;
+    if(u && u.id) { _cachedUid = u.id; return u.id; }
   } catch(e) {}
   try {
     const g = await sup.auth.getUser();
     const u = g && g.data && g.data.user;
-    if(u && u.id) return u.id;
+    if(u && u.id) { _cachedUid = u.id; return u.id; }
   } catch(e) {}
   return null;
 }
@@ -1732,7 +1747,7 @@ function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome
 }
 
 // Main App
-function MainApp({darkMode, onToggleDark}) {
+function MainApp({darkMode, onToggleDark, userId}) {
   const [view, setView] = useState('home');
   const [activeBotId, setActiveBotId] = useState(null);
   const [bots, setBots] = useState([]);
@@ -1752,16 +1767,13 @@ function MainApp({darkMode, onToggleDark}) {
   const loadBots = async (silent) => {
     if(!silent) setBotsLoading(true);
     try {
-      const uid = await withRetry(async () => {
-        const u = await getUid();
-        if(!u) throw new Error('登录状态未就绪');
-        return u;
-      }, 3, 800);
+      const uid = userId || await getUid();
+      if(!uid) throw new Error('登录状态未就绪，请重新登录');
       const r = await withRetry(async () => {
         const res = await sup.from('bots').select('*').eq('user_id',uid).order('created_at');
         if(res.error) throw res.error;
         return res;
-      }, 3, 1200);
+      }, 2, 1000);
       setBots(r.data || []);
       setLoadError('');
     } catch(e) {
@@ -1834,7 +1846,7 @@ function MainApp({darkMode, onToggleDark}) {
 
   useEffect(()=>{ loadBots(); loadWorldviews(); loadStories(); loadSettings(); }, []);
 
-  const handleLogout = () => sup.auth.signOut();
+  const handleLogout = () => { _cachedUid = null; sup.auth.signOut(); };
 
   const activeBot = bots.find(b => b.id === activeBotId);
 
@@ -2008,7 +2020,7 @@ function App() {
     <div style={{fontSize:12,marginTop:6,opacity:.6}}>超过 15 秒无响应会提示错误</div>
   </div></div>;
   if(!session) return <AuthPage/>;
-  return <MainApp darkMode={darkMode} onToggleDark={()=>setDarkMode(!darkMode)}/>;
+  return <MainApp darkMode={darkMode} onToggleDark={()=>setDarkMode(!darkMode)} userId={session && session.user && session.user.id}/>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);`;
