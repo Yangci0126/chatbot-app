@@ -111,6 +111,36 @@ const errMsg = (e, fb) => {
   return m || fb || '请求失败';
 };
 
+// 取当前用户 ID：优先读本地 session（瞬时返回），避免每次都发 getUser 网络请求
+async function getUid() {
+  try {
+    const s = await sup.auth.getSession();
+    const u = s && s.data && s.data.session && s.data.session.user;
+    if(u && u.id) return u.id;
+  } catch(e) {}
+  try {
+    const g = await sup.auth.getUser();
+    const u = g && g.data && g.data.user;
+    if(u && u.id) return u.id;
+  } catch(e) {}
+  return null;
+}
+
+// 通用重试：应对后端冷启动、瞬时网络抖动
+async function withRetry(fn, times, delay) {
+  const maxTimes = times || 3;
+  const baseDelay = delay || 1200;
+  let lastErr;
+  for(let i = 0; i < maxTimes; i++) {
+    try { return await fn(); }
+    catch(e) {
+      lastErr = e;
+      if(i < maxTimes - 1) await new Promise(r => setTimeout(r, baseDelay * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 // 世界书（Lorebook）：只在对话提到相关关键词时注入对应条目，避免长设定占用全部 token
 function matchLorebook(entries, text) {
   if(!entries || !entries.length) return [];
@@ -495,7 +525,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
     setEditingId(null); setEditText('');
     setTyping(true);
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const msgIdx = messages.findIndex(m=>m.id===msgId);
       if(msgIdx<0) { setTyping(false); return; }
       // Delete this message and all subsequent ones
@@ -557,7 +587,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       if(!res.ok){ const ed=await res.json().catch(()=>({})); throw {message: ed.error?.message||'API错误: '+res.status}; }
       const d = await res.json();
       const reply = d.choices[0].message.content;
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const botMsg = {bot_id:bot.id,role:'assistant',content:reply,user_id:uid,variants:oldVariants};
       const br = await sup.from('messages').insert(botMsg).select('id').single();
       setMessages(prev=>[...prev, br.data?{...botMsg,id:br.data.id}:botMsg]);
@@ -569,7 +599,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
     const text = input.trim();
     if(!text || loading || editingId) return;
     setInput('');
-    const uid = (await sup.auth.getUser()).data.user.id;
+    const uid = await getUid();
     const userMsg = {bot_id:bot.id,role:'user',content:text,user_id:uid};
     setTyping(true);
     if(abortRef.current) abortRef.current.abort();
@@ -821,7 +851,7 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
     if(!name.trim()) { setError('请输入角色名'); return; }
     setSaving(true); setError('');
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const data = {
         user_id: uid, name: name.trim(), avatar, avatar_url: avatarUrl,
         personality, backstory, theme_color: themeColor,
@@ -954,7 +984,7 @@ function LorebookPanel({worldviewId}) {
     if(!keys.trim() || !content.trim()) { setErr('触发关键词和条目内容都要填写'); return; }
     setSaving(true); setErr('');
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       await sup.from('lorebook_entries').insert({user_id:uid, scope:'worldview', owner_id:worldviewId, keys:keys.trim(), content:content.trim()});
       setKeys(''); setContent('');
       await load();
@@ -1014,7 +1044,7 @@ function WorldviewEditor({initial, onSave, onCancel}) {
     if(!name.trim()) { setError('请输入世界观名称'); return; }
     setSaving(true); setError('');
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const data = { user_id: uid, name: name.trim(), details };
       if(initial?.id) {
         await sup.from('worldviews').update(data).eq('id',initial.id);
@@ -1109,7 +1139,7 @@ function SettingsView({userSettings, onSettingsUpdate, onBack, onLogout}) {
       localStorage.setItem('image_quality', imageQuality);
       localStorage.setItem('image_style', imageStyle);
 
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       await sup.from('user_settings').upsert({user_id:uid, api_key:apiKey, api_base_url:apiBase, default_model:defaultModel, display_name:displayName, avatar_url:avatarUrl, gender, image_api_key:imageApiKey, image_api_base_url:imageApiBase, image_model:imageModel, image_size:imageSize, image_quality:imageQuality, image_style:imageStyle},{onConflict:'user_id'});
       onSettingsUpdate({api_key:apiKey, api_base_url:apiBase, default_model:defaultModel, display_name:displayName, avatar_url:avatarUrl, gender, image_api_key:imageApiKey, image_api_base_url:imageApiBase, image_model:imageModel, image_size:imageSize, image_quality:imageQuality, image_style:imageStyle});
       setMsg('保存成功！');
@@ -1128,7 +1158,7 @@ function SettingsView({userSettings, onSettingsUpdate, onBack, onLogout}) {
         setMsg('导入中...');
         const text = await file.text();
         const data = JSON.parse(text);
-        const uid = (await sup.auth.getUser()).data.user.id;
+        const uid = await getUid();
         const botMap = {}, wvMap = {};
         let cntB=0,cntW=0,cntM=0,cntL=0;
         if(data.bots) for(const b of data.bots) { const oldId = b.id; delete b.id; b.user_id = uid; const r = await sup.from('bots').insert(b).select('id').single(); if(r.data) botMap[oldId] = r.data.id; cntB++; setMsg('导入角色 '+cntB+'/'+data.bots.length+'...'); }
@@ -1144,7 +1174,7 @@ function SettingsView({userSettings, onSettingsUpdate, onBack, onLogout}) {
 
   const exportData = async () => {
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const [bots, worldviews, messages, lorebook] = await Promise.all([
         sup.from('bots').select('*').eq('user_id',uid),
         sup.from('worldviews').select('*').eq('user_id',uid),
@@ -1227,7 +1257,7 @@ function StoryEditor({bots, worldviews, initial, onSave, onCancel}) {
     if(selectedBots.length===0) { setError('请至少选择1个角色'); return; }
     setSaving(true); setError('');
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const sd = {user_id:uid, name:name.trim(), background, worldview_id:worldviewId||null};
       let storyId;
       if(initial?.id) {
@@ -1411,7 +1441,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
     const text = input.trim();
     if(!text || loading) return;
     setInput('');
-    const uid = (await sup.auth.getUser()).data.user.id;
+    const uid = await getUid();
     const userMsg = {story_id:story.id,role:'user',content:text,user_id:uid};
     setTyping(true);
     let userMsgId;
@@ -1465,7 +1495,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
     setEditingId(null); setEditText('');
     setTyping(true);
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const msgIdx = messages.findIndex(m=>m.id===msgId);
       if(msgIdx<0) { setTyping(false); return; }
       const toDelete = messages.slice(msgIdx);
@@ -1521,7 +1551,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
       if(!res.ok){ const ed=await res.json().catch(()=>({})); throw {message: ed.error?.message||'API错误: '+res.status}; }
       const d = await res.json();
       const reply = d.choices[0].message.content;
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const botMsg = {story_id:story.id,role:'assistant',content:reply,user_id:uid,variants:oldVariants};
       const br = await sup.from('story_messages').insert(botMsg).select('id').single();
       setMessages(prev=>[...prev, br.data?{...botMsg,id:br.data.id}:botMsg]);
@@ -1641,7 +1671,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
 }
 
 // Sidebar
-function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark, loadError, onRetryLoad, onImport}) {
+function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark, loadError, onRetryLoad, onImport, botsLoading}) {
   const [listOpen, setListOpen] = useState(false);
   const handleSelect = id => { onSelect(id); setListOpen(false); if(isMobile()) onClose(); };
 
@@ -1654,14 +1684,21 @@ function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome
     <div className="sa">
       <button className="sbtn2" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button>
       <button className="sbtn2" onClick={()=>{onImport&&onImport();if(isMobile())onClose()}}>📥 导入角色卡</button>
-      <button className="sbtn2" onClick={()=>setListOpen(!listOpen)}>📋 角色列表{listOpen?' ▾':' ▸'}</button>
+      <button className="sbtn2" onClick={()=>{
+        const nxt = !listOpen;
+        setListOpen(nxt);
+        // 展开列表时若为空且未在加载中，自动补拉一次，避免用户盯着空列表干等
+        if(nxt && bots.length===0 && !botsLoading && onRetryLoad) onRetryLoad();
+      }}>📋 角色列表{listOpen?' ▾':' ▸'}</button>
       {listOpen && <div style={{padding:'0 0 4px'}}>
 
       {bots.map(b => <div key={b.id} className={"bli" + (b.id===activeId?' active':'')} onClick={()=>handleSelect(b.id)} onPointerDown={()=>handleSelect(b.id)}>
         <span className="bia">{b.avatar_url ? <img src={b.avatar_url} alt=""/> : b.avatar}</span>
         <span className="bin">{b.name}</span>
       </div>)}
-      {bots.length===0 && !loadError && <div className="ble"><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></div>}
+      {bots.length===0 && !loadError && <div className="ble">
+        {botsLoading ? <p>⏳ 正在加载角色...</p> : <><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></>}
+      </div>}
       </div>}
       {loadError && <div style={{background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.35)',borderRadius:8,padding:'8px 10px',fontSize:12,color:'#fca5a5',lineHeight:1.6}}>
         <div style={{fontWeight:600,marginBottom:4}}>⚠️ 数据加载失败</div>
@@ -1708,16 +1745,30 @@ function MainApp({darkMode, onToggleDark}) {
   const [activeStory, setActiveStory] = useState(null);
   const [editingStory, setEditingStory] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [botsLoading, setBotsLoading] = useState(true);
 
   const [userEmail, setUserEmail] = useState('');
 
-  const loadBots = async () => {
+  const loadBots = async (silent) => {
+    if(!silent) setBotsLoading(true);
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
-      const r = await sup.from('bots').select('*').eq('user_id',uid).order('created_at');
+      const uid = await withRetry(async () => {
+        const u = await getUid();
+        if(!u) throw new Error('登录状态未就绪');
+        return u;
+      }, 3, 800);
+      const r = await withRetry(async () => {
+        const res = await sup.from('bots').select('*').eq('user_id',uid).order('created_at');
+        if(res.error) throw res.error;
+        return res;
+      }, 3, 1200);
       setBots(r.data || []);
       setLoadError('');
-    } catch(e) { setBots([]); setLoadError('角色加载失败：' + errMsg(e,'网络异常')); }
+    } catch(e) {
+      setBots([]);
+      setLoadError('角色加载失败：' + errMsg(e,'网络异常'));
+    }
+    setBotsLoading(false);
   };
 
   const importBot = () => {
@@ -1732,7 +1783,7 @@ function MainApp({darkMode, onToggleDark}) {
         const card = JSON.parse(txt);
         const data = cardToBot(card);
         if(!data.name) throw new Error('角色卡缺少角色名称');
-        const uid = (await sup.auth.getUser()).data.user.id;
+        const uid = await getUid();
         const r = await sup.from('bots').insert({user_id:uid, ...data}).select('id').single();
         if(r.error) throw r.error;
         await loadBots();
@@ -1743,7 +1794,7 @@ function MainApp({darkMode, onToggleDark}) {
   };
 
   const loadWorldviews = async () => {    try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const r = await sup.from('worldviews').select('*').eq('user_id',uid).order('created_at');
       setWorldviews(r.data || []);
     } catch(e) { setWorldviews([]); }
@@ -1751,7 +1802,7 @@ function MainApp({darkMode, onToggleDark}) {
 
   const loadStories = async () => {
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const r = await sup.from('stories').select('*').eq('user_id',uid).order('created_at');
       if(r.data) {
         const s = [];
@@ -1768,7 +1819,7 @@ function MainApp({darkMode, onToggleDark}) {
 
   const loadSettings = async () => {
     try {
-      const uid = (await sup.auth.getUser()).data.user.id;
+      const uid = await getUid();
       const r = await sup.from('user_settings').select('*').eq('user_id',uid).maybeSingle();
       if(r.data) setUserSettings(r.data);
       const u = await sup.auth.getUser();
@@ -1807,7 +1858,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <SettingsView userSettings={userSettings} onSettingsUpdate={s=>{setUserSettings(s);loadSettings()}} onBack={()=>setView('home')} onLogout={handleLogout}/>
@@ -1823,7 +1874,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <WorldviewList items={worldviews} onEdit={wv=>{setEditingWorldview(wv);setView('edit-worldview')}} onDelete={async id=>{await sup.from('worldviews').delete().eq('id',id);loadWorldviews()}} onBack={()=>setView('home')}/>
@@ -1847,7 +1898,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <StoryList items={stories} bots={bots} onChat={st=>{setActiveStory(st);setView('story-chat')}} onEdit={st=>{setEditingStory(st);setView('edit-story')}} onDelete={async id=>{await sup.from('stories').delete().eq('id',id);loadStories()}} onBack={()=>setView('home')}/>
@@ -1865,7 +1916,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
       <div className="mn">
         <StoryChat story={activeStory} bots={bots} userSettings={userSettings} onBack={()=>{setActiveStory(null);setView('story-list')}}/>
       </div>
@@ -1882,7 +1933,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <div className="pg-center"><div className="pgc">
@@ -1905,7 +1956,7 @@ function MainApp({darkMode, onToggleDark}) {
       onLogout={handleLogout} email={userEmail} userProfile={userSettings}
       onProfileClick={()=>setView('settings')}
       onWorldviewList={()=>setView('worldview-list')}
-      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
+      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot} botsLoading={botsLoading}/>
     <div className="mn">
       {isMobile() && !activeBot && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
       {activeBot ? <ChatWindow bot={activeBot} userSettings={userSettings} onBack={()=>{setActiveBotId(null);setView('home')}} onViewDetail={()=>setView('bot-detail')}/> : <EmptyState onMenuClick={()=>setSidebarOpen(true)} onCreate={()=>{setEditingBot(null);setView('create-bot')}} onWorldviewList={()=>setView('worldview-list')}/>}
