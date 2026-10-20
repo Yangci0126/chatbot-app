@@ -100,7 +100,16 @@ const AVATARS = ['🤖','👩‍🚀','🦊','🐱','🐶','🐼','🦄','🐉',
 const COLORS = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
 const isMobile = () => window.innerWidth <= 768;
 const userName = d => d || '用户';
-const errMsg = (e, fb) => { if(!e) return fb||'未知错误'; if(typeof e==='string'&&e.length>0&&e!=='{}') return e; if(e.message&&e.message.length>1&&e.message!=='{}') return e.message; return fb||'请求失败' };
+const errMsg = (e, fb) => {
+  if(!e) return fb||'未知错误';
+  let m = '';
+  if(typeof e==='string' && e.length>0 && e!=='{}') m = e;
+  else if(e.message && e.message.length>1 && e.message!=='{}') m = e.message;
+  if(/failed to fetch|networkerror|load failed|network request failed|fetch failed|err_connection|err_name_not_resolved/i.test(m)) {
+    return '无法连接服务器，请检查网络或后端服务状态（Supabase 项目可能被暂停）';
+  }
+  return m || fb || '请求失败';
+};
 
 function buildSystemPrompt(bot, worldview, settings, summary) {
   let p = '你是"' + bot.name + '"\\n';
@@ -1353,7 +1362,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
 }
 
 // Sidebar
-function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark}) {
+function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark, loadError, onRetryLoad}) {
   const [listOpen, setListOpen] = useState(false);
   const handleSelect = id => { onSelect(id); setListOpen(false); if(isMobile()) onClose(); };
 
@@ -1372,7 +1381,12 @@ function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome
         <span className="bia">{b.avatar_url ? <img src={b.avatar_url} alt=""/> : b.avatar}</span>
         <span className="bin">{b.name}</span>
       </div>)}
-      {bots.length===0 && <div className="ble"><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></div>}
+      {bots.length===0 && !loadError && <div className="ble"><p>还没有角色</p><p>点 ✨ 创建角色 来做一个～</p></div>}
+      </div>}
+      {loadError && <div style={{background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.35)',borderRadius:8,padding:'8px 10px',fontSize:12,color:'#fca5a5',lineHeight:1.6}}>
+        <div style={{fontWeight:600,marginBottom:4}}>⚠️ 数据加载失败</div>
+        <div style={{wordBreak:'break-word',opacity:.9}}>{loadError}</div>
+        <button onClick={onRetryLoad} style={{marginTop:6,padding:'4px 10px',fontSize:12,border:'1px solid rgba(255,255,255,.25)',background:'transparent',color:'var(--st)',borderRadius:6,cursor:'pointer',fontFamily:'inherit'}}>🔄 重试</button>
       </div>}
       <button className="sbtn2" onClick={()=>{onCreateWorldview();if(isMobile())onClose()}}>🌍 创建世界观</button>
       <button className="sbtn2" onClick={()=>{onWorldviewList();if(isMobile())onClose()}}>📚 世界观列表</button>
@@ -1413,6 +1427,7 @@ function MainApp({darkMode, onToggleDark}) {
   const [stories, setStories] = useState([]);
   const [activeStory, setActiveStory] = useState(null);
   const [editingStory, setEditingStory] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
   const [userEmail, setUserEmail] = useState('');
 
@@ -1421,7 +1436,8 @@ function MainApp({darkMode, onToggleDark}) {
       const uid = (await sup.auth.getUser()).data.user.id;
       const r = await sup.from('bots').select('*').eq('user_id',uid).order('created_at');
       setBots(r.data || []);
-    } catch(e) { setBots([]); }
+      setLoadError('');
+    } catch(e) { setBots([]); setLoadError('角色加载失败：' + errMsg(e,'网络异常')); }
   };
 
   const loadWorldviews = async () => {
@@ -1490,7 +1506,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <SettingsView userSettings={userSettings} onSettingsUpdate={s=>{setUserSettings(s);loadSettings()}} onBack={()=>setView('home')} onLogout={handleLogout}/>
@@ -1506,7 +1522,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <WorldviewList items={worldviews} onEdit={wv=>{setEditingWorldview(wv);setView('edit-worldview')}} onDelete={async id=>{await sup.from('worldviews').delete().eq('id',id);loadWorldviews()}} onBack={()=>setView('home')}/>
@@ -1530,7 +1546,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <StoryList items={stories} bots={bots} onChat={st=>{setActiveStory(st);setView('story-chat')}} onEdit={st=>{setEditingStory(st);setView('edit-story')}} onDelete={async id=>{await sup.from('stories').delete().eq('id',id);loadStories()}} onBack={()=>setView('home')}/>
@@ -1548,7 +1564,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
       <div className="mn">
         <StoryChat story={activeStory} bots={bots} userSettings={userSettings} onBack={()=>{setActiveStory(null);setView('story-list')}}/>
       </div>
@@ -1565,7 +1581,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <div className="pg-center"><div className="pgc">
@@ -1588,7 +1604,7 @@ function MainApp({darkMode, onToggleDark}) {
       onLogout={handleLogout} email={userEmail} userProfile={userSettings}
       onProfileClick={()=>setView('settings')}
       onWorldviewList={()=>setView('worldview-list')}
-      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark}/>
+      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
     <div className="mn">
       {isMobile() && !activeBot && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
       {activeBot ? <ChatWindow bot={activeBot} userSettings={userSettings} onBack={()=>{setActiveBotId(null);setView('home')}} onViewDetail={()=>setView('bot-detail')}/> : <EmptyState onMenuClick={()=>setSidebarOpen(true)} onCreate={()=>{setEditingBot(null);setView('create-bot')}} onWorldviewList={()=>setView('worldview-list')}/>}
@@ -1600,6 +1616,7 @@ function MainApp({darkMode, onToggleDark}) {
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [connError, setConnError] = useState('');
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode')==='1');
   useEffect(() => {
     if(darkMode) document.documentElement.classList.add('dark');
@@ -1607,11 +1624,37 @@ function App() {
     localStorage.setItem('darkMode', darkMode?'1':'0');
   }, [darkMode]);
   useEffect(()=>{
-    sup.auth.getSession().then(r => { setSession(r.data.session); setLoading(false); });
+    let alive = true;
+    const timer = setTimeout(()=>{
+      if(!alive) return;
+      alive = false;
+      setConnError('连接服务器超时（15 秒无响应）');
+      setLoading(false);
+    }, 15000);
+    sup.auth.getSession()
+      .then(r => { if(!alive) return; clearTimeout(timer); setSession(r.data.session); setLoading(false); })
+      .catch(e => { if(!alive) return; clearTimeout(timer); setConnError(errMsg(e,'无法连接到服务器')); setLoading(false); });
     const sub = sup.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => sub.data.subscription.unsubscribe();
+    return () => { clearTimeout(timer); alive = false; sub.data.subscription.unsubscribe(); };
   }, []);
-  if(loading) return <div className="auth-pg"><div style={{color:'var(--t2)'}}>加载中...</div></div>;
+  if(connError) return <div className="auth-pg"><div className="auth-card">
+    <div style={{fontSize:44,textAlign:'center',marginBottom:8}}>🔌</div>
+    <div className="auth-tt">无法连接服务器</div>
+    <p style={{fontSize:13,color:'var(--t2)',textAlign:'center',margin:'8px 0 16px',wordBreak:'break-word'}}>{connError}</p>
+    <div style={{fontSize:12.5,color:'var(--t2)',background:'var(--bg)',padding:'12px 14px',borderRadius:8,marginBottom:18,lineHeight:1.8,textAlign:'left'}}>
+      <div style={{fontWeight:600,color:'var(--tx)',marginBottom:6}}>可能的原因：</div>
+      <div>• Supabase 项目被暂停（免费版 7 天不活跃会自动暂停）</div>
+      <div>• 网络连接异常或代理问题</div>
+      <div>• 后端服务正在维护中</div>
+      <div style={{marginTop:8,color:'var(--ac)'}}>👉 可访问 supabase.com/dashboard 检查项目状态</div>
+    </div>
+    <button className="sbtn" onClick={()=>window.location.reload()}>重新加载</button>
+  </div></div>;
+  if(loading) return <div className="auth-pg"><div style={{color:'var(--t2)',textAlign:'center'}}>
+    <div style={{fontSize:32,marginBottom:8}}>⏳</div>
+    <div>加载中...</div>
+    <div style={{fontSize:12,marginTop:6,opacity:.6}}>超过 15 秒无响应会提示错误</div>
+  </div></div>;
   if(!session) return <AuthPage/>;
   return <MainApp darkMode={darkMode} onToggleDark={()=>setDarkMode(!darkMode)}/>;
 }
