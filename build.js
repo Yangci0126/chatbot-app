@@ -111,7 +111,76 @@ const errMsg = (e, fb) => {
   return m || fb || '请求失败';
 };
 
-function buildSystemPrompt(bot, worldview, settings, summary) {
+// 世界书（Lorebook）：只在对话提到相关关键词时注入对应条目，避免长设定占用全部 token
+function matchLorebook(entries, text) {
+  if(!entries || !entries.length) return [];
+  const t = String(text || '').toLowerCase();
+  if(!t) return [];
+  const hits = [];
+  for(const e of entries) {
+    if(e.enabled === false) continue;
+    const ks = String(e.keys || '').split(/[,，、;；\\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if(!ks.length) continue;
+    if(ks.some(k => t.indexOf(k) !== -1)) hits.push(e);
+  }
+  return hits.sort((a,b) => (a.priority==null?100:a.priority) - (b.priority==null?100:b.priority)).slice(0, 8);
+}
+
+// 角色卡：导出为 Tavern v2 兼容格式，同时保留本应用特有字段
+function botToCard(bot) {
+  return {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name: bot.name || '未命名角色',
+      description: [bot.basic_info, bot.appearance].filter(Boolean).join('\\n\\n'),
+      personality: bot.personality || '',
+      scenario: '',
+      first_mes: '',
+      mes_example: '',
+      creator_notes: bot.backstory || '',
+      system_prompt: '',
+      post_history_instructions: '',
+      alternate_greetings: [],
+      tags: [],
+      creator: 'AI角色扮演聊天机器人',
+      character_version: '1.0',
+      extensions: {
+        chatbot_app: {
+          avatar: bot.avatar || '🤖',
+          avatar_url: bot.avatar_url || '',
+          theme_color: bot.theme_color || '#6366f1',
+          model: bot.model || '',
+          basic_info: bot.basic_info || '',
+          appearance: bot.appearance || '',
+          backstory: bot.backstory || '',
+          speaking_style: bot.speaking_style || ''
+        }
+      }
+    }
+  };
+}
+
+// 兼容 Tavern v2 / v1 / 本应用导出格式
+function cardToBot(card) {
+  const d = (card && card.data) || card || {};
+  const ext = (d.extensions && d.extensions.chatbot_app) || {};
+  const desc = d.description || '';
+  return {
+    name: d.name || d.char_name || '未命名角色',
+    avatar: ext.avatar || '🤖',
+    avatar_url: ext.avatar_url || '',
+    basic_info: ext.basic_info || desc,
+    appearance: ext.appearance || '',
+    personality: d.personality || d.char_persona || '',
+    backstory: ext.backstory || d.creator_notes || '',
+    speaking_style: ext.speaking_style || '',
+    theme_color: ext.theme_color || '#6366f1',
+    model: ext.model || ''
+  };
+}
+
+function buildSystemPrompt(bot, worldview, settings, summary, lorebook, recentText) {
   let p = '你是"' + bot.name + '"\\n';
   if(bot.basic_info) p += '【基本信息】' + bot.basic_info + '\\n';
   if(bot.appearance) p += '【外貌设定】' + bot.appearance + '\\n';
@@ -119,8 +188,14 @@ function buildSystemPrompt(bot, worldview, settings, summary) {
   if(bot.backstory) p += '【背景故事】' + bot.backstory + '\\n';
   if(bot.speaking_style) p += '【讲话风格】你必须严格遵循以下说话方式：' + bot.speaking_style + '。这些规则覆盖其他所有对话规则，不可偏离。\\n';
   if(worldview) {
-    p += '【世界观】时代:' + (worldview.era||'未设定') + ';科技:' + (worldview.technology||'未设定') + ';大事件:' + (worldview.world_events||'无') + '\\n';
-    p += '【时代约束】不能出现不符合该时代的物品、概念或事件\\n';
+    const wvText = worldview.details || [worldview.era, worldview.technology, worldview.world_events].filter(Boolean).join('\\n');
+    if(wvText) p += '【世界观设定 · 硬约束】\\n' + wvText + '\\n';
+    p += '【世界观铁律】以上世界观设定是不可违背的硬性约束，不是参考建议。任何不符合该设定的物品、科技、概念、社会规则、势力关系或表达方式都绝对不能出现。\\n';
+  }
+  const loreHits = matchLorebook(lorebook, recentText);
+  if(loreHits.length) {
+    p += '【世界书 · 当前剧情相关设定】以下条目因对话中提及相关关键词而激活，是本轮必须严格遵守的背景事实：\\n';
+    loreHits.forEach(e => { p += '· ' + e.content + '\\n'; });
   }
   const nm = userName(settings.display_name);
   const g = settings.gender === 'male' ? '男性' : settings.gender === 'female' ? '女性' : '';
@@ -147,6 +222,13 @@ function buildSystemPrompt(bot, worldview, settings, summary) {
   if(summary) p += '【对话历史摘要】以下是之前对话的关键信息，你必须记住并保持一致性：\\n' + summary + '\\n';
   p += '【规则】\\n1.（）内为动作或心理，（）外为对话\\n2.用第三人称描述自己\\n3.用户可用金手指强行改变剧情走向\\n4.你说的每一句话、做的每一个动作，都必须严格符合你的性格设定、背景故事和所在世界的世界观\\n';
   if(worldview) p += '5.【世界观铁律】不论对话如何发展，绝对不能出现任何不符合世界观设定的事物、科技、概念或表达方式\\n';
+  p += '\\n━━━【设定执行铁律 · 最高优先级】━━━\\n';
+  p += '以上所有设定（人物设定、世界观设定）都不是"参考建议"，而是不可违背的硬性约束。每次回复前必须逐条自检：\\n';
+  p += '1. 角色行为是否 100% 符合人物设定？身份、性格、说话方式、能力边界、知识范围、认知水平都不能越界。角色不能知道自己设定里不知道的事，不能做到设定里做不到的事。\\n';
+  p += '2. 是否违反了世界观设定中的任意一条规则？\\n';
+  p += '3. ⚠️ 设定中如果提出了**任何具体要求或格式规范**（例如："每次回复都要描写心理状态"、"必须包含环境描写"、"要用第一人称"、"每段结尾要留悬念"、"必须用括号标注动作"、"要写出每个角色的内心想法"等），你必须**每一次回复都完整执行**，绝不能因为对话轮次变多就逐渐淡忘、省略或简化。这类要求等同于必须永久遵守的输出规范。\\n';
+  p += '4. 当设定内容与你的"常识"或"默认写作习惯"冲突时，一律以设定为准，不要用通用套路覆盖用户的具体要求。\\n';
+  p += '5. 每次输出前检查一次，确认没有违背任何设定再发出。宁可内容简短，也绝不违背设定。\\n';
   return p;
 }
 
@@ -248,7 +330,7 @@ function EmptyState({onMenuClick, onCreate, onWorldviewList}) {
 }
 
 // Message bubble
-function MessageBubble({msg, idx, isLast, botAvatar, botColor, userAvatar, onEdit, onRegenerate, editingId, editText, setEditText, onSaveEdit, onCancelEdit}) {
+function MessageBubble({msg, idx, isLast, botAvatar, botColor, userAvatar, onEdit, onRegenerate, editingId, editText, setEditText, onSaveEdit, onCancelEdit, variantIdx, onSwitchVariant}) {
   const isUser = msg.role === 'user';
   const isEditing = editingId === msg.id;
   if(isEditing) {
@@ -263,14 +345,24 @@ function MessageBubble({msg, idx, isLast, botAvatar, botColor, userAvatar, onEdi
       </div>
     </div>;
   }
+  const allVersions = isUser ? [msg.content] : [msg.content, ...(msg.variants || [])];
+  const curV = Math.min(variantIdx || 0, allVersions.length - 1);
+  const shownContent = allVersions[curV];
   return <div className={"mr" + (isUser ? " u" : "")}>
     {!isUser
       ? <div className="mav" style={{background:botColor+'20'}}>{typeof botAvatar==='string'&&botAvatar.startsWith('data:')?<img src={botAvatar} alt=""/>:botAvatar}</div>
       : <div className="mav ua">{userAvatar?<img src={userAvatar} alt=""/>:'👤'}</div>}
-    <div>
-      <div className={"mb " + (isUser?"ub":"ab")} style={isUser?null:{borderLeft:'3px solid '+botColor}}>{msg.content}</div>
-      {isUser && <button className="msg-act" onClick={()=>onEdit(msg)}>┆ 编辑</button>}
-      {!isUser && isLast && <button className="msg-act" onClick={onRegenerate}>↻ 重新生成</button>}
+    <div style={{minWidth:0}}>
+      <div className={"mb " + (isUser?"ub":"ab")} style={isUser?null:{borderLeft:'3px solid '+botColor}}>{shownContent}</div>
+      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        {!isUser && allVersions.length > 1 && <div style={{display:'flex',alignItems:'center',gap:2,fontSize:11,color:'var(--t2)'}}>
+          <button className="msg-act" style={{opacity:1,padding:'0 3px'}} onClick={()=>onSwitchVariant(msg.id,-1)}>◀</button>
+          <span>{curV+1}/{allVersions.length}</span>
+          <button className="msg-act" style={{opacity:1,padding:'0 3px'}} onClick={()=>onSwitchVariant(msg.id,1)}>▶</button>
+        </div>}
+        {isUser && <button className="msg-act" onClick={()=>onEdit(msg)}>┆ 编辑</button>}
+        {!isUser && isLast && <button className="msg-act" onClick={onRegenerate}>↻ 重新生成</button>}
+      </div>
     </div>
     {!isUser && <div className="msg-spacer" style={{width:32,flexShrink:0}}/>}
   </div>;
@@ -293,13 +385,26 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
   const [error, setError] = useState('');
   const [typing, setTyping] = useState(false);
   const [worldview, setWorldview] = useState(null);
+  const [lorebook, setLorebook] = useState([]);
   const [summary, setSummary] = useState('');
   const [summarizing, setSummarizing] = useState(false);
   const summarizingRef = useRef(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [variantIdx, setVariantIdx] = useState({});
   const msgsRef = useRef(null);
   const abortRef = useRef(null);
+
+  const switchVariant = (msgId, dir) => {
+    setVariantIdx(prev => {
+      const msg = messages.find(m => m.id === msgId);
+      const total = 1 + ((msg && msg.variants && msg.variants.length) || 0);
+      if(total < 2) return prev;
+      const cur = prev[msgId] || 0;
+      const next = (cur + dir + total) % total;
+      return { ...prev, [msgId]: next };
+    });
+  };
 
   const loadMessages = async () => {
     try {
@@ -310,11 +415,16 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
   };
 
   const loadWorldview = async () => {
+    setWorldview(null); setLorebook([]);
     if(!bot.worldview_id) return;
     try {
       const r = await sup.from('worldviews').select('*').eq('id',bot.worldview_id).single();
       if(r.data) setWorldview(r.data);
     } catch(e) {}
+    try {
+      const lr = await sup.from('lorebook_entries').select('*').eq('scope','worldview').eq('owner_id',bot.worldview_id).order('priority',{ascending:true});
+      setLorebook(lr.data || []);
+    } catch(e) { setLorebook([]); }
   };
 
   useEffect(()=>{ loadMessages(); loadWorldview(); }, [bot.id]);
@@ -352,9 +462,15 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
   }, [messages.length, bot.id]);
 
   // Helper: build chat history for API — last 40 messages, summary covers the rest
+  // 取消息当前显示的那一版（用户切换过候选回复时，上下文与界面保持一致）
+  const pickVersion = m => {
+    if(!m.variants || !m.variants.length) return m.content;
+    const all = [m.content, ...m.variants];
+    return all[Math.min(variantIdx[m.id] || 0, all.length - 1)] || m.content;
+  };
   const getChatHistory = (allMsgs) => {
-    if(allMsgs.length <= 40) return allMsgs.map(m=>({role:m.role,content:m.content}));
-    return allMsgs.slice(-40).map(m=>({role:m.role,content:m.content}));
+    const slice = allMsgs.length <= 40 ? allMsgs : allMsgs.slice(-40);
+    return slice.map(m=>({role:m.role,content:pickVersion(m)}));
   };
 
   useEffect(()=>{ msgsRef.current?.scrollTo(0,msgsRef.current.scrollHeight); }, [messages.length]);
@@ -397,7 +513,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
       setError('');
-      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary);
+      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary, lorebook, messages.slice(-6).map(m=>m.content).join(' '));
       const chatHistory = getChatHistory(newMsgs);
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
@@ -419,18 +535,20 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
     if(lastMsg.role!=='assistant') return;
     setTyping(true);
     try {
-      // Delete last bot message
-      await sup.from('messages').delete().eq('id',lastMsg.id);
-      const truncated = messages.slice(0,-1);
-      setMessages(truncated);
-      // Generate new reply
+      // 先校验配置，避免删掉旧回复后才发现无法生成
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
       const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
+      // 旧回复收进 variants，不丢失，可随时切换回来
+      const oldVariants = [lastMsg.content, ...(lastMsg.variants || [])];
+      await sup.from('messages').delete().eq('id',lastMsg.id);
+      const truncated = messages.slice(0,-1);
+      setMessages(truncated);
+      // Generate new reply
       setError('');
-      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary);
+      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary, lorebook, messages.slice(-6).map(m=>m.content).join(' '));
       const chatHistory = getChatHistory(truncated);
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
@@ -440,7 +558,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const d = await res.json();
       const reply = d.choices[0].message.content;
       const uid = (await sup.auth.getUser()).data.user.id;
-      const botMsg = {bot_id:bot.id,role:'assistant',content:reply,user_id:uid};
+      const botMsg = {bot_id:bot.id,role:'assistant',content:reply,user_id:uid,variants:oldVariants};
       const br = await sup.from('messages').insert(botMsg).select('id').single();
       setMessages(prev=>[...prev, br.data?{...botMsg,id:br.data.id}:botMsg]);
     } catch(e) { setError(errMsg(e)); }
@@ -457,6 +575,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
     if(abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    let userMsgId;
     try {
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
@@ -467,11 +586,11 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       setError('');
 
       const r0 = await sup.from('messages').insert(userMsg).select('id').single();
-      const userMsgId = r0.data?.id;
+      userMsgId = r0.data?.id;
       setMessages(prev=>[...prev, {...userMsg, id:userMsgId}]);
 
       const chatHistory = getChatHistory(messages.concat(userMsg));
-      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary);
+      const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary, lorebook, messages.slice(-6).map(m=>m.content).join(' ') + ' ' + text);
 
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',signal:controller.signal,
@@ -553,7 +672,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
     <div className="ms" ref={msgsRef}>
       {messages.length === 0 && !error && <div className="mse"><h3>开始对话</h3><p>发送第一条消息吧～</p></div>}
       {error && <div className="er" style={{margin:'0 4px'}}>{error}<button className="logob" style={{marginLeft:8}} onClick={()=>setError('')}>关闭</button></div>}
-      {messages.map((m,i) => <MessageBubble key={i} msg={m} idx={i} isLast={i===messages.length-1} botAvatar={avatar} botColor={color} userAvatar={ua} onEdit={startEdit} onRegenerate={regenerateReply} editingId={editingId} editText={editText} setEditText={setEditText} onSaveEdit={saveEdit} onCancelEdit={cancelEdit}/>)}
+      {messages.map((m,i) => <MessageBubble key={i} msg={m} idx={i} isLast={i===messages.length-1} botAvatar={avatar} botColor={color} userAvatar={ua} onEdit={startEdit} onRegenerate={regenerateReply} editingId={editingId} editText={editText} setEditText={setEditText} onSaveEdit={saveEdit} onCancelEdit={cancelEdit} variantIdx={variantIdx[m.id]} onSwitchVariant={switchVariant}/>)}
       {typing && <TypingIndicator name={bot.name} avatar={avatar} color={color}/>}
       {sceneUrl && <div style={{padding:'0 4px',position:'relative'}}>
         <img src={sceneUrl} alt="场景插图" style={{width:'100%',maxWidth:400,borderRadius:12,margin:'8px 0',display:'block'}} onClick={()=>window.open(sceneUrl)}/>
@@ -790,9 +909,21 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
 
       <div className="fd"><label>AI 模型</label><input value={model} onChange={e=>setModel(e.target.value)} placeholder="deepseek-chat"/></div>
 
-      <div style={{display:'flex',gap:8}}>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
         <button type="submit" className="btn bp" disabled={saving}>{saving?'保存中...':'保存'}</button>
         <button type="button" className="btn bg" onClick={onCancel}>取消</button>
+        {initial?.id && <button type="button" className="btn bg" style={{border:'1px solid var(--bd)'}} onClick={()=>{
+          const card = botToCard({name, avatar, avatar_url:avatarUrl, basic_info:basicInfo, appearance, personality, backstory, speaking_style:speakingStyle, theme_color:themeColor, model});
+          const blob = new Blob([JSON.stringify(card, null, 2)], {type:'application/json'});
+          const u = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = u;
+          a.download = (name || 'character') + '.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(u);
+        }}>📤 导出角色卡</button>}
         {initial?.id && <button type="button" className="btn bd2" style={{marginLeft:'auto'}} onClick={()=>{if(confirm('确认删除角色：'+initial.name+'？此操作不可撤销。'))onDelete(initial.id)}}>✕ 删除角色</button>}
       </div>
     </form>
@@ -801,9 +932,80 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
 }
 
 // Worldview Editor
+// 世界书面板：管理关键词触发的设定条目
+function LorebookPanel({worldviewId}) {
+  const [entries, setEntries] = useState([]);
+  const [keys, setKeys] = useState('');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const load = async () => {
+    try {
+      const r = await sup.from('lorebook_entries').select('*').eq('scope','worldview').eq('owner_id',worldviewId).order('priority',{ascending:true});
+      setEntries(r.data || []);
+      setErr('');
+    } catch(e) { setErr(errMsg(e)); }
+  };
+  useEffect(()=>{ load(); }, [worldviewId]);
+
+  const add = async () => {
+    if(!keys.trim() || !content.trim()) { setErr('触发关键词和条目内容都要填写'); return; }
+    setSaving(true); setErr('');
+    try {
+      const uid = (await sup.auth.getUser()).data.user.id;
+      await sup.from('lorebook_entries').insert({user_id:uid, scope:'worldview', owner_id:worldviewId, keys:keys.trim(), content:content.trim()});
+      setKeys(''); setContent('');
+      await load();
+    } catch(e) { setErr(errMsg(e)); }
+    setSaving(false);
+  };
+
+  const del = async id => {
+    if(!confirm('删除这条世界书条目？')) return;
+    try { await sup.from('lorebook_entries').delete().eq('id',id); load(); } catch(e) { setErr(errMsg(e)); }
+  };
+
+  const toggle = async en => {
+    try { await sup.from('lorebook_entries').update({enabled: en.enabled === false}).eq('id',en.id); load(); } catch(e) { setErr(errMsg(e)); }
+  };
+
+  return <div style={{marginTop:20,borderTop:'1px solid var(--bd)',paddingTop:16}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={()=>setOpen(!open)}>
+      <div style={{fontSize:15,color:'var(--ac)',fontWeight:600}}>📖 世界书（关键词触发）{entries.length>0?(' · '+entries.length+' 条'):''}</div>
+      <span style={{color:'var(--t2)',fontSize:13}}>{open?'▾':'▸'}</span>
+    </div>
+    <div style={{fontSize:12,color:'var(--t2)',marginTop:6,lineHeight:1.7}}>
+      世界书条目只在对话提到对应关键词时才注入 AI，不占日常 token。适合放大量细节设定（人物小传、地点志、历史事件、物品图鉴、势力关系等）。
+    </div>
+    {open && <div style={{marginTop:12}}>
+      {err && <div className="er">{err}</div>}
+      {entries.map(en => <div key={en.id} style={{border:'1px solid var(--bd)',borderRadius:8,padding:10,marginBottom:8,background:'var(--bg2)',opacity:en.enabled===false?.5:1}}>
+        <div style={{fontSize:12,color:'var(--ac)',marginBottom:5,wordBreak:'break-word'}}>🔑 {en.keys}</div>
+        <div style={{fontSize:13,whiteSpace:'pre-wrap',lineHeight:1.7,color:'var(--tx)'}}>{en.content}</div>
+        <div style={{display:'flex',gap:6,marginTop:8}}>
+          <button type="button" className="btn bs bg" style={{border:'1px solid var(--bd)'}} onClick={()=>toggle(en)}>{en.enabled===false?'✅ 启用':'🚫 禁用'}</button>
+          <button type="button" className="btn bs bd2" onClick={()=>del(en.id)}>✕ 删除</button>
+        </div>
+      </div>)}
+      {entries.length===0 && <div style={{fontSize:13,color:'var(--t2)',padding:'8px 0'}}>还没有条目，在下面添加第一条吧～</div>}
+      <div className="fd" style={{marginTop:10}}>
+        <label>触发关键词（用逗号分隔）</label>
+        <input value={keys} onChange={e=>setKeys(e.target.value)} placeholder="如：长安, 京城, 都城"/>
+      </div>
+      <div className="fd">
+        <label>条目内容（触发后注入 AI 的设定）</label>
+        <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="如：长安城是唐朝都城，人口百万，分一百零八坊，宵禁后坊门关闭，夜市只开于东西两市……" rows={4}/>
+      </div>
+      <button type="button" className="btn bp bs" onClick={add} disabled={saving}>{saving?'添加中...':'＋ 添加条目'}</button>
+    </div>}
+  </div>;
+}
+
 function WorldviewEditor({initial, onSave, onCancel}) {
   const [name, setName] = useState(initial?.name || '');
-  const [details, setDetails] = useState(initial ? ([initial.era||'（未设定时代）', initial.technology||'（未设定科技）', initial.world_events||''].join('\\n')) : '');
+  const [details, setDetails] = useState(initial ? (initial.details || [initial.era, initial.technology, initial.world_events].filter(Boolean).join('\\n')) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -813,9 +1015,7 @@ function WorldviewEditor({initial, onSave, onCancel}) {
     setSaving(true); setError('');
     try {
       const uid = (await sup.auth.getUser()).data.user.id;
-      const lines = details.split('\\n');
-      const clean = s => (s.startsWith('（未设定') || s.trim()==='') ? '' : s;
-      const data = { user_id: uid, name: name.trim(), era: clean(lines[0]||''), technology: clean(lines[1]||''), world_events: lines.slice(2).map(clean).filter(Boolean).join('\\n')||'' };
+      const data = { user_id: uid, name: name.trim(), details };
       if(initial?.id) {
         await sup.from('worldviews').update(data).eq('id',initial.id);
       } else {
@@ -831,12 +1031,19 @@ function WorldviewEditor({initial, onSave, onCancel}) {
     <form onSubmit={handleSave}>
       {error && <div className="er">{error}</div>}
       <div className="fd"><label>世界观名称</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="如：唐朝贞观年间" autoFocus/></div>
-      <div className="fd"><label>世界观详情</label><textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="描述这个世界的时代背景、科技水平、重大事件等" rows={6}/></div>
+      <div className="fd">
+        <label>世界观详情</label>
+        <textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="自由书写这个世界：时代背景、科技水平、社会规则、势力关系、地理环境、重大事件……以及任何你希望 AI 必须遵守的设定要求（例如「每次回复必须描写环境氛围」），都可以直接写在这里。" rows={10}/>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:6,lineHeight:1.6}}>
+          💡 不限制格式，你怎么写 AI 就怎么理解。写进去的每一条设定都会作为硬约束执行。
+        </div>
+      </div>
       <div style={{display:'flex',gap:8}}>
         <button type="submit" className="btn bp" disabled={saving}>{saving?'保存中...':'保存'}</button>
         <button type="button" className="btn bg" onClick={onCancel}>取消</button>
       </div>
     </form>
+    {initial?.id && <LorebookPanel worldviewId={initial.id}/>}
   </div></div>;
 }
 
@@ -846,15 +1053,17 @@ function WorldviewList({items, onEdit, onDelete, onBack}) {
     <div className="pgt">📚 世界观列表</div>
     {isMobile() && <button className="btn bg" style={{marginBottom:12}} onClick={onBack}>← 返回</button>}
     {items.length === 0 && <p style={{color:'var(--t2)'}}>还没有世界观，去「🌍 创建世界观」做一个吧～</p>}
-    {items.map(wv => <div key={wv.id} style={{background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:'var(--rs)',padding:14,marginBottom:10}}>
-      <div style={{fontWeight:600,marginBottom:4}}>{wv.name}</div>
-      <div style={{fontSize:13,color:'var(--t2)'}}>时代：{wv.era||'未设定'} | 科技：{wv.technology||'未设定'}</div>
-      {wv.world_events && <div style={{fontSize:13,color:'var(--t2)',marginTop:2}}>大事件：{wv.world_events}</div>}
-      <div style={{marginTop:8,display:'flex',gap:6}}>
-        <button className="btn bp bs" onClick={()=>onEdit(wv)}>✎ 编辑</button>
-        <button className="btn bd2 bs" onClick={()=>{if(confirm('删除世界观：'+wv.name+'？')) onDelete(wv.id)}}>✕ 删除</button>
-      </div>
-    </div>)}
+    {items.map(wv => {
+      const wvText = wv.details || [wv.era, wv.technology, wv.world_events].filter(Boolean).join('\\n');
+      return <div key={wv.id} style={{background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:'var(--rs)',padding:14,marginBottom:10}}>
+        <div style={{fontWeight:600,marginBottom:4}}>{wv.name}</div>
+        {wvText && <div style={{fontSize:13,color:'var(--t2)',whiteSpace:'pre-wrap',lineHeight:1.7}}>{wvText}</div>}
+        <div style={{marginTop:8,display:'flex',gap:6}}>
+          <button className="btn bp bs" onClick={()=>onEdit(wv)}>✎ 编辑</button>
+          <button className="btn bd2 bs" onClick={()=>{if(confirm('删除世界观：'+wv.name+'？')) onDelete(wv.id)}}>✕ 删除</button>
+        </div>
+      </div>;
+    })}
   </div></div>;
 }
 
@@ -920,12 +1129,13 @@ function SettingsView({userSettings, onSettingsUpdate, onBack, onLogout}) {
         const text = await file.text();
         const data = JSON.parse(text);
         const uid = (await sup.auth.getUser()).data.user.id;
-        const botMap = {};
-        let cntB=0,cntW=0,cntM=0;
+        const botMap = {}, wvMap = {};
+        let cntB=0,cntW=0,cntM=0,cntL=0;
         if(data.bots) for(const b of data.bots) { const oldId = b.id; delete b.id; b.user_id = uid; const r = await sup.from('bots').insert(b).select('id').single(); if(r.data) botMap[oldId] = r.data.id; cntB++; setMsg('导入角色 '+cntB+'/'+data.bots.length+'...'); }
-        if(data.worldviews) for(const w of data.worldviews) { delete w.id; w.user_id = uid; await sup.from('worldviews').insert(w); cntW++; }
+        if(data.worldviews) for(const w of data.worldviews) { const oldId = w.id; delete w.id; w.user_id = uid; const r = await sup.from('worldviews').insert(w).select('id').single(); if(r.data) wvMap[oldId] = r.data.id; cntW++; }
         if(data.messages){ const msgs=data.messages; for(const m of msgs) { delete m.id; m.user_id = uid; if(botMap[m.bot_id]) m.bot_id = botMap[m.bot_id]; await sup.from('messages').insert(m); cntM++; } }
-        setMsg('导入成功！角色 '+cntB+' 个，世界观 '+cntW+' 个，消息 '+cntM+' 条。');
+        if(data.lorebook && data.lorebook.length) for(const le of data.lorebook) { delete le.id; le.user_id = uid; if(le.scope==='worldview'){ if(!wvMap[le.owner_id]) continue; le.owner_id = wvMap[le.owner_id]; } await sup.from('lorebook_entries').insert(le); cntL++; }
+        setMsg('导入成功！角色 '+cntB+' 个，世界观 '+cntW+' 个，消息 '+cntM+' 条，世界书 '+cntL+' 条。');
         onSettingsUpdate(userSettings);
       } catch(e) { setMsg('导入失败：' + errMsg(e)); }
     };
@@ -935,12 +1145,13 @@ function SettingsView({userSettings, onSettingsUpdate, onBack, onLogout}) {
   const exportData = async () => {
     try {
       const uid = (await sup.auth.getUser()).data.user.id;
-      const [bots, worldviews, messages] = await Promise.all([
+      const [bots, worldviews, messages, lorebook] = await Promise.all([
         sup.from('bots').select('*').eq('user_id',uid),
         sup.from('worldviews').select('*').eq('user_id',uid),
-        sup.from('messages').select('*').eq('user_id',uid)
+        sup.from('messages').select('*').eq('user_id',uid),
+        sup.from('lorebook_entries').select('*').eq('user_id',uid)
       ]);
-      const json = JSON.stringify({bots:bots.data,worldviews:worldviews.data,messages:messages.data},null,2);
+      const json = JSON.stringify({bots:bots.data||[],worldviews:worldviews.data||[],messages:messages.data||[],lorebook:lorebook.data||[]},null,2);
       const blob = new Blob([json],{type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1040,7 +1251,13 @@ function StoryEditor({bots, worldviews, initial, onSave, onCancel}) {
     <form onSubmit={handleSave}>
       {error && <div className="er">{error}</div>}
       <div className="fd"><label>剧本名称</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="给剧本起个名字" autoFocus/></div>
-      <div className="fd"><label>故事背景</label><textarea value={background} onChange={e=>setBackground(e.target.value)} placeholder="描述这个剧本的故事背景、时代、主线剧情等" rows={4}/></div>
+      <div className="fd">
+        <label>剧本设定</label>
+        <textarea value={background} onChange={e=>setBackground(e.target.value)} placeholder="自由书写这个剧本：故事背景、主线剧情、人物关系、场景环境、剧情走向……以及任何你希望 AI 必须遵守的要求（例如「每次回复都要写出每个人的心理状态」），都可以直接写在这里。" rows={8}/>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:6,lineHeight:1.6}}>
+          💡 不限制格式。写进去的每一条都会作为硬约束，AI 每次回复都必须严格遵守。
+        </div>
+      </div>
       <div className="fd"><label>选择世界观（限制可选角色）</label>
         <select value={worldviewId} onChange={e=>{setWorldviewId(e.target.value);setSelectedBots([])}}>
           <option value="">不限世界观</option>
@@ -1094,10 +1311,31 @@ function StoryChat({story, bots, userSettings, onBack}) {
   const [typing, setTyping] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [variantIdx, setVariantIdx] = useState({});
   const [sceneUrl, setSceneUrl] = useState(localStorage.getItem('story-scene-'+story.id) || null);
   const [genning, setGening] = useState(false);
+  const [worldview, setWorldview] = useState(null);
+  const [lorebook, setLorebook] = useState([]);
   const msgsRef = useRef(null);
   const sumRef = useRef('');
+
+  const switchVariant = (msgId, dir) => {
+    setVariantIdx(prev => {
+      const msg = messages.find(m => m.id === msgId);
+      const total = 1 + ((msg && msg.variants && msg.variants.length) || 0);
+      if(total < 2) return prev;
+      const cur = prev[msgId] || 0;
+      const next = (cur + dir + total) % total;
+      return { ...prev, [msgId]: next };
+    });
+  };
+
+  // 取消息当前显示的那一版（切换过候选时，上下文与界面保持一致）
+  const pickVersion = m => {
+    if(!m.variants || !m.variants.length) return m.content;
+    const all = [m.content, ...m.variants];
+    return all[Math.min(variantIdx[m.id] || 0, all.length - 1)] || m.content;
+  };
 
   const loadMessages = async () => {
     try {
@@ -1106,7 +1344,20 @@ function StoryChat({story, bots, userSettings, onBack}) {
     } catch(e) { setMessages([]); }
   };
 
-  useEffect(()=>{ loadMessages(); }, [story.id]);
+  const loadWorldview = async () => {
+    setWorldview(null); setLorebook([]);
+    if(!story.worldview_id) return;
+    try {
+      const r = await sup.from('worldviews').select('*').eq('id',story.worldview_id).single();
+      if(r.data) setWorldview(r.data);
+    } catch(e) {}
+    try {
+      const lr = await sup.from('lorebook_entries').select('*').eq('scope','worldview').eq('owner_id',story.worldview_id).order('priority',{ascending:true});
+      setLorebook(lr.data || []);
+    } catch(e) { setLorebook([]); }
+  };
+
+  useEffect(()=>{ loadMessages(); loadWorldview(); }, [story.id]);
   useEffect(()=>{ msgsRef.current?.scrollTo(0,msgsRef.current.scrollHeight); }, [messages.length]);
 
   const clearChat = async () => {
@@ -1117,12 +1368,21 @@ function StoryChat({story, bots, userSettings, onBack}) {
     }
   };
 
-  const buildStoryPrompt = () => {
+  const buildStoryPrompt = (extraText) => {
     const chars = bots.filter(b => story.bot_ids?.includes(b.id));
     const nl = '\\n';
     let p = '你是一个剧本的叙述者，需要轮流扮演以下角色。每次只以一个角色的身份发言。' + nl + nl;
     p += '【剧本名称】' + story.name + nl;
-    if(story.background) p += '【故事背景】' + story.background + nl;
+    if(story.background) p += '【剧本设定 · 硬约束】' + nl + story.background + nl;
+    if(worldview) {
+      const wvText = worldview.details || [worldview.era, worldview.technology, worldview.world_events].filter(Boolean).join(nl);
+      if(wvText) p += '【世界观设定 · 硬约束】' + nl + wvText + nl;
+    }
+    const loreHits = matchLorebook(lorebook, messages.slice(-6).map(m=>m.content).join(' ') + ' ' + (extraText||''));
+    if(loreHits.length) {
+      p += '【世界书 · 当前剧情相关设定】以下条目因对话中提及相关关键词而激活，是本轮必须严格遵守的背景事实：' + nl;
+      loreHits.forEach(e => { p += '· ' + e.content + nl; });
+    }
     p += nl;
     chars.forEach(c => {
       p += '━━━ ' + c.name + ' ━━━' + nl;
@@ -1136,7 +1396,14 @@ function StoryChat({story, bots, userSettings, onBack}) {
     if(sumRef.current) p += '【历史摘要】之前的对话关键信息：' + sumRef.current + nl + nl;
     p += '【规则】' + nl + '1.每次回复选一个最合适的角色发言，格式：【角色名】内容' + nl + '2.（）内为动作或心理，必须以角色名为主语，如"（' + (chars[0]?.name||'她') + '轻轻点头）"' + nl + '3.推动剧情发展，可以自主切换说话的角色' + nl + '4.严格遵守每个角色的性格设定' + nl;
     p += '5.【NPC生成】当剧情需要配角出场时（路人、家人、同事等未登记角色），你必须让他们直接出场说话，用【NPC名】作为前缀。NPC的性格从剧情上下文和已有角色关系中自动推导。每个NPC至少要有1-2句直接对话，带有独立的语气和小动作，严禁只靠旁白转述。NPC的言行必须符合剧本的世界观和时代背景。⚠️NPC出场前必须先检查空间逻辑：已明确的空间（如密室、飞机上、深山里独处）不能无理由地冒出NPC，出场必须有合理的空间基础（敲门、打电话、路过、本就应在场等）。如剧情不允许任何人出现，就正常推进不强行塞NPC。' + nl;
-    p += '6.【口语自然度】每个角色的说话方式必须像真人：禁止AI味开头（好的、明白了等）；句子可以破碎带语气词（呃、嗯、啊）；情绪要从文字里透出来（生气时句子变短、紧张时结巴）；主动提问吐槽转移话题，不要被动等用户问；每轮最多2个括号动作描述。';
+    p += '6.【口语自然度】每个角色的说话方式必须像真人：禁止AI味开头（好的、明白了等）；句子可以破碎带语气词（呃、嗯、啊）；情绪要从文字里透出来（生气时句子变短、紧张时结巴）；主动提问吐槽转移话题，不要被动等用户问；每轮最多2个括号动作描述。' + nl;
+    p += nl + '━━━【剧本执行铁律 · 最高优先级】━━━' + nl;
+    p += '以上【剧本设定】、【世界观设定】和每个角色的【人物设定】都不是参考建议，而是不可违背的硬性约束。每次回复前必须逐条自检：' + nl;
+    p += '1. 本次发言的角色，其行为是否 100% 符合他/她的人物设定？身份、性格、说话方式、能力边界、知识范围都不能越界。' + nl;
+    p += '2. 是否违反了剧本设定或世界观设定中的任意一条规则？剧情走向、人物关系、空间环境、时代背景都必须严格遵循。' + nl;
+    p += '3. ⚠️ **剧本或世界观设定中如果提出了任何具体要求或格式规范**（例如："我需要看到每个人的心理状态"、"每次回复要包含环境描写"、"要写出角色的内心独白"、"必须用某种格式输出"、"每段结尾留悬念"等），你必须**每一次回复都完整执行**，绝不能因为轮次增加就淡忘、省略或简化。这类要求等同于永久生效的输出规范，是本剧本最重要的执行项。' + nl;
+    p += '4. 当设定内容与你的"常识"或"默认写作习惯"冲突时，一律以设定为准，不要用通用套路覆盖用户的具体要求。' + nl;
+    p += '5. 每次输出前检查一次，确认没有违背任何设定再发出。宁可内容简短，也绝不违背设定。';
     return p;
   };
 
@@ -1147,6 +1414,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
     const uid = (await sup.auth.getUser()).data.user.id;
     const userMsg = {story_id:story.id,role:'user',content:text,user_id:uid};
     setTyping(true);
+    let userMsgId;
     try {
       const apiKey = userSettings?.api_key || localStorage.getItem('api_key') || '';
       let baseUrl = (userSettings?.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
@@ -1155,11 +1423,11 @@ function StoryChat({story, bots, userSettings, onBack}) {
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
       setError('');
       const r0 = await sup.from('story_messages').insert(userMsg).select('id').single();
-      const userMsgId = r0.data?.id;
+      userMsgId = r0.data?.id;
       setMessages(prev=>[...prev, {...userMsg, id:userMsgId}]);
       const allMsgs = messages.concat(userMsg);
-      const chatHistory = allMsgs.length > 40 ? allMsgs.slice(-40).map(m=>({role:m.role,content:m.content})) : allMsgs.map(m=>({role:m.role,content:m.content}));
-      const systemPrompt = buildStoryPrompt();
+      const chatHistory = (allMsgs.length > 40 ? allMsgs.slice(-40) : allMsgs).map(m=>({role:m.role,content:pickVersion(m)}));
+      const systemPrompt = buildStoryPrompt(text);
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
         body:JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...chatHistory],max_tokens:2048,temperature:0.85})
@@ -1212,8 +1480,8 @@ function StoryChat({story, bots, userSettings, onBack}) {
       const model = userSettings?.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
       setError('');
-      const systemPrompt = buildStoryPrompt();
-      const chatHistory = newMsgs.length > 40 ? newMsgs.slice(-40).map(m=>({role:m.role,content:m.content})) : newMsgs.map(m=>({role:m.role,content:m.content}));
+      const systemPrompt = buildStoryPrompt(text);
+      const chatHistory = (newMsgs.length > 40 ? newMsgs.slice(-40) : newMsgs).map(m=>({role:m.role,content:pickVersion(m)}));
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
         body:JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...chatHistory],max_tokens:2048,temperature:0.85})
@@ -1234,17 +1502,18 @@ function StoryChat({story, bots, userSettings, onBack}) {
     if(lastMsg.role!=='assistant') return;
     setTyping(true);
     try {
-      await sup.from('story_messages').delete().eq('id',lastMsg.id);
-      const truncated = messages.slice(0,-1);
-      setMessages(truncated);
       const apiKey = userSettings?.api_key || localStorage.getItem('api_key') || '';
       let baseUrl = (userSettings?.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
       const model = userSettings?.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
+      const oldVariants = [lastMsg.content, ...(lastMsg.variants || [])];
+      await sup.from('story_messages').delete().eq('id',lastMsg.id);
+      const truncated = messages.slice(0,-1);
+      setMessages(truncated);
       setError('');
       const systemPrompt = buildStoryPrompt();
-      const chatHistory = truncated.length > 40 ? truncated.slice(-40).map(m=>({role:m.role,content:m.content})) : truncated.map(m=>({role:m.role,content:m.content}));
+      const chatHistory = (truncated.length > 40 ? truncated.slice(-40) : truncated).map(m=>({role:m.role,content:pickVersion(m)}));
       const res = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
         body:JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...chatHistory],max_tokens:2048,temperature:0.85})
@@ -1253,7 +1522,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
       const d = await res.json();
       const reply = d.choices[0].message.content;
       const uid = (await sup.auth.getUser()).data.user.id;
-      const botMsg = {story_id:story.id,role:'assistant',content:reply,user_id:uid};
+      const botMsg = {story_id:story.id,role:'assistant',content:reply,user_id:uid,variants:oldVariants};
       const br = await sup.from('story_messages').insert(botMsg).select('id').single();
       setMessages(prev=>[...prev, br.data?{...botMsg,id:br.data.id}:botMsg]);
     } catch(e) { setError(errMsg(e)); }
@@ -1325,21 +1594,31 @@ function StoryChat({story, bots, userSettings, onBack}) {
             </div>
           </div>;
         }
-        const bn = !isUser&&m.content.match(/^【(.+?)】/) ? m.content.match(/^【(.+?)】/)[1] : '';
+        const allVersions = isUser ? [m.content] : [m.content, ...(m.variants||[])];
+        const curV = Math.min(variantIdx[m.id] || 0, allVersions.length - 1);
+        const rawContent = allVersions[curV];
+        const bn = !isUser&&rawContent.match(/^【(.+?)】/) ? rawContent.match(/^【(.+?)】/)[1] : '';
         const b = chars.find(c=>c.name===bn);
         const av = b ? (b.avatar_url||b.avatar) : '🎭';
         const bc = b?.theme_color || color;
-        const displayContent = !isUser ? m.content.replace(/^【.+?】\s*/,'') : m.content;
+        const displayContent = !isUser ? rawContent.replace(/^【.+?】\s*/,'') : rawContent;
         return <div key={i} className={"mr"+(isUser?" u":"")}>
           {!isUser ? <div className="mav" style={{background:bc+'20',fontSize:14}}>{typeof av==='string'&&av.startsWith('data:')?<img src={av} alt=""/>:av}</div>
             : <div className="mav ua">{ua?<img src={ua} alt=""/>:'👤'}</div>}
-          <div>
+          <div style={{minWidth:0}}>
             <div className={"mb "+(isUser?"ub":"ab")} style={isUser?null:{borderLeft:'3px solid '+bc}}>
               {!isUser && bn && <div style={{fontSize:11,color:bc,fontWeight:600,marginBottom:2}}>{bn}</div>}
               {displayContent}
             </div>
-            {isUser && <button className="msg-act" onClick={()=>startEdit(m)}>┆ 编辑</button>}
-            {!isUser && isLast && <button className="msg-act" onClick={regenerateReply}>↻ 重新生成</button>}
+            <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+              {!isUser && allVersions.length > 1 && <div style={{display:'flex',alignItems:'center',gap:2,fontSize:11,color:'var(--t2)'}}>
+                <button className="msg-act" style={{opacity:1,padding:'0 3px'}} onClick={()=>switchVariant(m.id,-1)}>◀</button>
+                <span>{curV+1}/{allVersions.length}</span>
+                <button className="msg-act" style={{opacity:1,padding:'0 3px'}} onClick={()=>switchVariant(m.id,1)}>▶</button>
+              </div>}
+              {isUser && <button className="msg-act" onClick={()=>startEdit(m)}>┆ 编辑</button>}
+              {!isUser && isLast && <button className="msg-act" onClick={regenerateReply}>↻ 重新生成</button>}
+            </div>
           </div>
           {!isUser && <div className="msg-spacer" style={{width:32,flexShrink:0}}/>}
         </div>;
@@ -1362,7 +1641,7 @@ function StoryChat({story, bots, userSettings, onBack}) {
 }
 
 // Sidebar
-function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark, loadError, onRetryLoad}) {
+function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome, open, onClose, onLogout, email, userProfile, onProfileClick, onWorldviewList, onCreateWorldview, onCreateStory, onStoryList, darkMode, onToggleDark, loadError, onRetryLoad, onImport}) {
   const [listOpen, setListOpen] = useState(false);
   const handleSelect = id => { onSelect(id); setListOpen(false); if(isMobile()) onClose(); };
 
@@ -1374,6 +1653,7 @@ function Sidebar({bots, activeId, onSelect, onCreate, onEdit, onSettings, onHome
 
     <div className="sa">
       <button className="sbtn2" onClick={()=>{onCreate();if(isMobile())onClose()}}>✨ 创建角色</button>
+      <button className="sbtn2" onClick={()=>{onImport&&onImport();if(isMobile())onClose()}}>📥 导入角色卡</button>
       <button className="sbtn2" onClick={()=>setListOpen(!listOpen)}>📋 角色列表{listOpen?' ▾':' ▸'}</button>
       {listOpen && <div style={{padding:'0 0 4px'}}>
 
@@ -1440,8 +1720,29 @@ function MainApp({darkMode, onToggleDark}) {
     } catch(e) { setBots([]); setLoadError('角色加载失败：' + errMsg(e,'网络异常')); }
   };
 
-  const loadWorldviews = async () => {
-    try {
+  const importBot = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json,application/json';
+    inp.onchange = async e => {
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      try {
+        const txt = await file.text();
+        const card = JSON.parse(txt);
+        const data = cardToBot(card);
+        if(!data.name) throw new Error('角色卡缺少角色名称');
+        const uid = (await sup.auth.getUser()).data.user.id;
+        const r = await sup.from('bots').insert({user_id:uid, ...data}).select('id').single();
+        if(r.error) throw r.error;
+        await loadBots();
+        alert('✅ 已导入角色「' + data.name + '」');
+      } catch(err) { alert('导入失败：' + errMsg(err)); }
+    };
+    inp.click();
+  };
+
+  const loadWorldviews = async () => {    try {
       const uid = (await sup.auth.getUser()).data.user.id;
       const r = await sup.from('worldviews').select('*').eq('user_id',uid).order('created_at');
       setWorldviews(r.data || []);
@@ -1506,7 +1807,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <SettingsView userSettings={userSettings} onSettingsUpdate={s=>{setUserSettings(s);loadSettings()}} onBack={()=>setView('home')} onLogout={handleLogout}/>
@@ -1522,7 +1823,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <WorldviewList items={worldviews} onEdit={wv=>{setEditingWorldview(wv);setView('edit-worldview')}} onDelete={async id=>{await sup.from('worldviews').delete().eq('id',id);loadWorldviews()}} onBack={()=>setView('home')}/>
@@ -1546,7 +1847,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <StoryList items={stories} bots={bots} onChat={st=>{setActiveStory(st);setView('story-chat')}} onEdit={st=>{setEditingStory(st);setView('edit-story')}} onDelete={async id=>{await sup.from('stories').delete().eq('id',id);loadStories()}} onBack={()=>setView('home')}/>
@@ -1564,7 +1865,7 @@ function MainApp({darkMode, onToggleDark}) {
         onWorldviewList={()=>setView('worldview-list')}
         onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}}
         onCreateStory={()=>{setEditingStory(null);setView('create-story')}}
-        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+        onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
       <div className="mn">
         <StoryChat story={activeStory} bots={bots} userSettings={userSettings} onBack={()=>{setActiveStory(null);setView('story-list')}}/>
       </div>
@@ -1581,7 +1882,7 @@ function MainApp({darkMode, onToggleDark}) {
         onLogout={handleLogout} email={userEmail} userProfile={userSettings}
         onProfileClick={()=>setView('settings')}
         onWorldviewList={()=>setView('worldview-list')}
-        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+        onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
       <div className="mn">
         {isMobile() && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
         <div className="pg-center"><div className="pgc">
@@ -1604,7 +1905,7 @@ function MainApp({darkMode, onToggleDark}) {
       onLogout={handleLogout} email={userEmail} userProfile={userSettings}
       onProfileClick={()=>setView('settings')}
       onWorldviewList={()=>setView('worldview-list')}
-      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots}/>
+      onCreateWorldview={()=>{setEditingWorldview(null);setView('create-worldview')}} onCreateStory={()=>{setEditingStory(null);setView('create-story')}} onStoryList={()=>setView('story-list')} darkMode={darkMode} onToggleDark={onToggleDark} loadError={loadError} onRetryLoad={loadBots} onImport={importBot}/>
     <div className="mn">
       {isMobile() && !activeBot && <button className="hmb" style={{display:'flex',padding:'8px 14px'}} onClick={()=>setSidebarOpen(true)}>☰</button>}
       {activeBot ? <ChatWindow bot={activeBot} userSettings={userSettings} onBack={()=>{setActiveBotId(null);setView('home')}} onViewDetail={()=>setView('bot-detail')}/> : <EmptyState onMenuClick={()=>setSidebarOpen(true)} onCreate={()=>{setEditingBot(null);setView('create-bot')}} onWorldviewList={()=>setView('worldview-list')}/>}
