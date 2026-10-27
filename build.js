@@ -195,7 +195,6 @@ function botToCard(bot) {
           avatar: bot.avatar || '🤖',
           avatar_url: bot.avatar_url || '',
           theme_color: bot.theme_color || '#6366f1',
-          model: bot.model || '',
           basic_info: bot.basic_info || '',
           appearance: bot.appearance || '',
           backstory: bot.backstory || '',
@@ -220,8 +219,7 @@ function cardToBot(card) {
     personality: d.personality || d.char_persona || '',
     backstory: ext.backstory || d.creator_notes || '',
     speaking_style: ext.speaking_style || '',
-    theme_color: ext.theme_color || '#6366f1',
-    model: ext.model || ''
+    theme_color: ext.theme_color || '#6366f1'
   };
 }
 
@@ -484,7 +482,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
         const apiKey = userSettings.api_key || localStorage.getItem('api_key');
         let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
         while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
-        const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
+        const model = userSettings.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
         if(!apiKey) return;
         const olderMsgs = messages.slice(0, messages.length-40);
         const history = olderMsgs.map(m=>(m.role==='user'?'用户':'角色')+':'+m.content).join('\\n');
@@ -555,7 +553,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
-      const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
+      const model = userSettings.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
       setError('');
       const systemPrompt = buildSystemPrompt(bot, worldview, userSettings, summary, lorebook, messages.slice(-6).map(m=>m.content).join(' '));
@@ -584,7 +582,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
-      const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
+      const model = userSettings.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setTyping(false); return; }
       // 旧回复收进 variants，不丢失，可随时切换回来
       const oldVariants = [lastMsg.content, ...(lastMsg.variants || [])];
@@ -625,7 +623,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
-      const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
+      const model = userSettings.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
 
       if(!apiKey) { setError('请在设置中配置API Key'); setTyping(false); return; }
       setError('');
@@ -682,7 +680,7 @@ function ChatWindow({bot, userSettings, onBack, onViewDetail}) {
       const apiKey = userSettings.api_key || localStorage.getItem('api_key');
       let baseUrl = (userSettings.api_base_url || localStorage.getItem('api_base_url') || 'https://api.deepseek.com/v1');
       while(baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0,-1);
-      const model = userSettings.default_model || bot.model || localStorage.getItem('default_model') || 'deepseek-chat';
+      const model = userSettings.default_model || localStorage.getItem('default_model') || 'deepseek-chat';
       if(!apiKey) { setError('请配置API Key'); setGening(false); return; }
       const pr = await fetch(baseUrl + '/chat/completions', {
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
@@ -821,7 +819,6 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
   const [personality, setPersonality] = useState(initial?.personality || '');
   const [backstory, setBackstory] = useState(initial?.backstory || '');
   const [themeColor, setThemeColor] = useState(initial?.theme_color || COLORS[0]);
-  const [model, setModel] = useState(initial?.model || '');
   const [worldviewId, setWorldviewId] = useState(initial?.worldview_id || '');
   const [basicInfo, setBasicInfo] = useState(initial?.basic_info || '');
   const [appearance, setAppearance] = useState(initial?.appearance || '');
@@ -871,7 +868,6 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
         user_id: uid, name: name.trim(), avatar, avatar_url: avatarUrl,
         personality, backstory, theme_color: themeColor,
         basic_info: basicInfo, appearance,
-        model: model || 'deepseek-chat',
         worldview_id: worldviewId || null,
         background_url: bgUrl,
         speaking_style: speakingStyle
@@ -952,13 +948,15 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
       <div className="fd" style={{marginTop:12}}><label style={{fontSize:15,color:'var(--ac)'}}>📖 背景故事</label></div>
       <div className="fd"><textarea value={backstory} onChange={e=>setBackstory(e.target.value)} placeholder="角色的身份、经历、故事线" rows={4}/></div>
 
-      <div className="fd"><label>AI 模型</label><input value={model} onChange={e=>setModel(e.target.value)} placeholder="deepseek-chat"/></div>
+      <div style={{fontSize:12,color:'var(--t2)',marginBottom:12,lineHeight:1.6}}>
+        💡 AI 模型统一使用「⚙️ 设置 → 默认模型」里的配置，不再按角色单独指定。
+      </div>
 
       <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
         <button type="submit" className="btn bp" disabled={saving}>{saving?'保存中...':'保存'}</button>
         <button type="button" className="btn bg" onClick={onCancel}>取消</button>
         {initial?.id && <button type="button" className="btn bg" style={{border:'1px solid var(--bd)'}} onClick={()=>{
-          const card = botToCard({name, avatar, avatar_url:avatarUrl, basic_info:basicInfo, appearance, personality, backstory, speaking_style:speakingStyle, theme_color:themeColor, model});
+          const card = botToCard({name, avatar, avatar_url:avatarUrl, basic_info:basicInfo, appearance, personality, backstory, speaking_style:speakingStyle, theme_color:themeColor});
           const blob = new Blob([JSON.stringify(card, null, 2)], {type:'application/json'});
           const u = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -1952,7 +1950,7 @@ function MainApp({darkMode, onToggleDark, userId}) {
           <div className="pgt">{activeBot.name} 的详细设定</div>
           <button className="btn bg" style={{marginBottom:12}} onClick={()=>setView('chat')}>← 返回聊天</button>
           <div style={{background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:'var(--rs)',padding:16}}>
-            {[['角色名',activeBot.name],['头像',activeBot.avatar],['主题色',<span style={{display:'inline-block',width:16,height:16,borderRadius:'50%',background:activeBot.theme_color,verticalAlign:'middle'}}/>],['基本信息',activeBot.basic_info||'未设定'],['外貌设定',activeBot.appearance||'未设定'],['性格设定',activeBot.personality||'未设定'],['世界观',wv?wv.name:'当前时间真实世界'],['背景故事',activeBot.backstory||'未设定'],['AI模型',activeBot.model||'deepseek-chat']].map(([label,val],i)=><div key={i} style={{padding:'10px 0',borderBottom:i<8?'1px solid var(--bd)':'none'}}><div style={{fontSize:12,color:'var(--t2)',marginBottom:2}}>{label}</div><div style={{fontSize:14,whiteSpace:'pre-wrap'}}>{val||'未设定'}</div></div>)}
+            {[['角色名',activeBot.name],['头像',activeBot.avatar],['主题色',<span style={{display:'inline-block',width:16,height:16,borderRadius:'50%',background:activeBot.theme_color,verticalAlign:'middle'}}/>],['基本信息',activeBot.basic_info||'未设定'],['外貌设定',activeBot.appearance||'未设定'],['性格设定',activeBot.personality||'未设定'],['世界观',wv?wv.name:'当前时间真实世界'],['背景故事',activeBot.backstory||'未设定']].map(([label,val],i)=><div key={i} style={{padding:'10px 0',borderBottom:i<7?'1px solid var(--bd)':'none'}}><div style={{fontSize:12,color:'var(--t2)',marginBottom:2}}>{label}</div><div style={{fontSize:14,whiteSpace:'pre-wrap'}}>{val||'未设定'}</div></div>)}
             <button className="btn bp" style={{marginTop:12}} onClick={()=>{setEditingBot(activeBot);setView('edit-bot')}}>✎ 编辑角色</button>
           </div>
         </div></div>
