@@ -976,15 +976,19 @@ function BotEditor({worldviews, initial, onSave, onCancel, onDelete}) {
 
 // Worldview Editor
 // 世界书面板：管理关键词触发的设定条目
-function LorebookPanel({worldviewId}) {
+function LorebookPanel({worldviewId, pending, onPendingChange}) {
+  const isNew = !worldviewId;
   const [entries, setEntries] = useState([]);
   const [keys, setKeys] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(isNew);
+
+  const list = isNew ? (pending || []) : entries;
 
   const load = async () => {
+    if(isNew) return;
     try {
       const r = await sup.from('lorebook_entries').select('*').eq('scope','worldview').eq('owner_id',worldviewId).order('priority',{ascending:true});
       setEntries(r.data || []);
@@ -995,6 +999,12 @@ function LorebookPanel({worldviewId}) {
 
   const add = async () => {
     if(!keys.trim() || !content.trim()) { setErr('触发关键词和条目内容都要填写'); return; }
+    // 新建世界观：先暂存在内存，保存世界观后再一起写入
+    if(isNew) {
+      onPendingChange([...(pending||[]), {keys:keys.trim(), content:content.trim(), enabled:true, _tmp: Date.now() + Math.random()}]);
+      setKeys(''); setContent(''); setErr('');
+      return;
+    }
     setSaving(true); setErr('');
     try {
       const uid = await getUid();
@@ -1005,34 +1015,38 @@ function LorebookPanel({worldviewId}) {
     setSaving(false);
   };
 
-  const del = async id => {
+  const del = async item => {
     if(!confirm('删除这条世界书条目？')) return;
-    try { await sup.from('lorebook_entries').delete().eq('id',id); load(); } catch(e) { setErr(errMsg(e)); }
+    if(isNew) { onPendingChange((pending||[]).filter(x => x._tmp !== item._tmp)); return; }
+    try { await sup.from('lorebook_entries').delete().eq('id',item.id); load(); } catch(e) { setErr(errMsg(e)); }
   };
 
-  const toggle = async en => {
-    try { await sup.from('lorebook_entries').update({enabled: en.enabled === false}).eq('id',en.id); load(); } catch(e) { setErr(errMsg(e)); }
+  const toggle = async item => {
+    const nextEnabled = item.enabled === false;
+    if(isNew) { onPendingChange((pending||[]).map(x => x._tmp === item._tmp ? {...x, enabled: nextEnabled} : x)); return; }
+    try { await sup.from('lorebook_entries').update({enabled: nextEnabled}).eq('id',item.id); load(); } catch(e) { setErr(errMsg(e)); }
   };
 
   return <div style={{marginTop:20,borderTop:'1px solid var(--bd)',paddingTop:16}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={()=>setOpen(!open)}>
-      <div style={{fontSize:15,color:'var(--ac)',fontWeight:600}}>📖 世界书（关键词触发）{entries.length>0?(' · '+entries.length+' 条'):''}</div>
+      <div style={{fontSize:15,color:'var(--ac)',fontWeight:600}}>📖 世界书（关键词触发）{list.length>0?(' · '+list.length+' 条'):''}</div>
       <span style={{color:'var(--t2)',fontSize:13}}>{open?'▾':'▸'}</span>
     </div>
     <div style={{fontSize:12,color:'var(--t2)',marginTop:6,lineHeight:1.7}}>
       世界书条目只在对话提到对应关键词时才注入 AI，不占日常 token。适合放大量细节设定（人物小传、地点志、历史事件、物品图鉴、势力关系等）。
+      {isNew && <span style={{color:'var(--ac)'}}> 这里添加的条目会随世界观一起保存。</span>}
     </div>
     {open && <div style={{marginTop:12}}>
       {err && <div className="er">{err}</div>}
-      {entries.map(en => <div key={en.id} style={{border:'1px solid var(--bd)',borderRadius:8,padding:10,marginBottom:8,background:'var(--bg2)',opacity:en.enabled===false?.5:1}}>
+      {list.map(en => <div key={en.id || en._tmp} style={{border:'1px solid var(--bd)',borderRadius:8,padding:10,marginBottom:8,background:'var(--bg2)',opacity:en.enabled===false?.5:1}}>
         <div style={{fontSize:12,color:'var(--ac)',marginBottom:5,wordBreak:'break-word'}}>🔑 {en.keys}</div>
         <div style={{fontSize:13,whiteSpace:'pre-wrap',lineHeight:1.7,color:'var(--tx)'}}>{en.content}</div>
         <div style={{display:'flex',gap:6,marginTop:8}}>
           <button type="button" className="btn bs bg" style={{border:'1px solid var(--bd)'}} onClick={()=>toggle(en)}>{en.enabled===false?'✅ 启用':'🚫 禁用'}</button>
-          <button type="button" className="btn bs bd2" onClick={()=>del(en.id)}>✕ 删除</button>
+          <button type="button" className="btn bs bd2" onClick={()=>del(en)}>✕ 删除</button>
         </div>
       </div>)}
-      {entries.length===0 && <div style={{fontSize:13,color:'var(--t2)',padding:'8px 0'}}>还没有条目，在下面添加第一条吧～</div>}
+      {list.length===0 && <div style={{fontSize:13,color:'var(--t2)',padding:'8px 0'}}>还没有条目，在下面添加第一条吧～</div>}
       <div className="fd" style={{marginTop:10}}>
         <label>触发关键词（用逗号分隔）</label>
         <input value={keys} onChange={e=>setKeys(e.target.value)} placeholder="如：长安, 京城, 都城"/>
@@ -1049,6 +1063,7 @@ function LorebookPanel({worldviewId}) {
 function WorldviewEditor({initial, onSave, onCancel}) {
   const [name, setName] = useState(initial?.name || '');
   const [details, setDetails] = useState(initial ? (initial.details || [initial.era, initial.technology, initial.world_events].filter(Boolean).join('\\n')) : '');
+  const [pendingLore, setPendingLore] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -1056,15 +1071,26 @@ function WorldviewEditor({initial, onSave, onCancel}) {
     e.preventDefault();
     if(!name.trim()) { setError('请输入世界观名称'); return; }
     setSaving(true); setError('');
+    let loreErr = '';
     try {
       const uid = await getUid();
       const data = { user_id: uid, name: name.trim(), details };
       if(initial?.id) {
         await sup.from('worldviews').update(data).eq('id',initial.id);
       } else {
-        await sup.from('worldviews').insert(data);
+        const r = await sup.from('worldviews').insert(data).select('id').single();
+        if(r.error) throw r.error;
+        const newId = r.data && r.data.id;
+        // 新建时暂存的世界书条目，跟着世界观一起写入
+        if(newId && pendingLore.length) {
+          const rows = pendingLore.map(x => ({user_id: uid, scope: 'worldview', owner_id: newId, keys: x.keys, content: x.content, enabled: x.enabled !== false}));
+          const lr = await sup.from('lorebook_entries').insert(rows);
+          if(lr.error) loreErr = errMsg(lr.error);
+        }
       }
       onSave();
+      // 世界观已创建成功，世界书单独失败时只提示，避免用户重复创建
+      if(loreErr) alert('世界观已创建，但世界书条目保存失败：' + loreErr + '（可进入该世界观的编辑页重新添加）');
     } catch(e) { setError(errMsg(e)); }
     setSaving(false);
   };
@@ -1086,7 +1112,7 @@ function WorldviewEditor({initial, onSave, onCancel}) {
         <button type="button" className="btn bg" onClick={onCancel}>取消</button>
       </div>
     </form>
-    {initial?.id && <LorebookPanel worldviewId={initial.id}/>}
+    <LorebookPanel worldviewId={initial?.id} pending={pendingLore} onPendingChange={setPendingLore}/>
   </div></div>;
 }
 
